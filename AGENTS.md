@@ -28,3 +28,7 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project architecture
+
+- Keep BACY-10's command classification and offline responses in a pure client-safe helper, with gateway calls behind TanStack server functions; this keeps utility protocols available without exposing server credentials.
