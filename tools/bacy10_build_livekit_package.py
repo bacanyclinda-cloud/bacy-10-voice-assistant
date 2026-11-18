@@ -124,8 +124,8 @@ def configure_web(root: Path) -> None:
     layout.write_text(text, encoding="utf-8")
     css = web / "styles" / "globals.css"
     css.write_text(
-        ":root { --font-commit-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }\n"
-        + css.read_text(encoding="utf-8"),
+        css.read_text(encoding="utf-8")
+        + "\n:root { --font-commit-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }\n",
         encoding="utf-8",
     )
     og = web / "app" / "opengraph-image.tsx"
