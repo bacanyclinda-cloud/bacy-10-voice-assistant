@@ -213,7 +213,7 @@ def apply(root: Path):
       return;
     }
     try {
-      final allowed = await sdk.Hardware.requestCapturePermission();
+      final allowed = await sdk.Hardware.instance.requestCapturePermission();
       if (!allowed) {
         connectionError = 'Screen capture was cancelled. Nothing was shared.';
         notifyListeners();
