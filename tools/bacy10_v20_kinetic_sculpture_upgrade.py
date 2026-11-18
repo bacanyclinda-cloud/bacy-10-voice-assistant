@@ -13,6 +13,9 @@ import 'package:livekit_client/livekit_client.dart' as sdk;
 import 'package:provider/provider.dart';
 import '../controllers/app_ctrl.dart';
 
+/// Three-dimensional kinetic mineral core.
+/// A projected toroidal mesh with real face normals, studio lighting,
+/// two rotating axes and a glass eye. No old light waves or 2D ribbons.
 class BacyLiveOrb extends StatefulWidget {
   const BacyLiveOrb({super.key});
   @override
@@ -21,7 +24,7 @@ class BacyLiveOrb extends StatefulWidget {
 
 class _BacyLiveOrbState extends State<BacyLiveOrb> with SingleTickerProviderStateMixin {
   late final AnimationController motion = AnimationController(
-    vsync: this, duration: const Duration(milliseconds: 12500))..repeat();
+    vsync: this, duration: const Duration(milliseconds: 13500))..repeat();
 
   @override
   void dispose() {
@@ -31,212 +34,185 @@ class _BacyLiveOrbState extends State<BacyLiveOrb> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    final session = context.read<sdk.Session>();
     final room = context.read<AppCtrl>().room;
+    final session = context.read<sdk.Session>();
     return AnimatedBuilder(
-      animation: Listenable.merge([motion, session.agent, room]),
+      animation: Listenable.merge([motion, room, session.agent]),
       builder: (context, _) {
-        final talking = room.localParticipant?.isSpeaking ?? false;
-        final state = session.agent.agentState;
-        final reply = state == sdk.AgentState.speaking;
-        final thinking = state == sdk.AgentState.thinking;
-        final ready = session.connectionState == sdk.ConnectionState.connected;
-        final audio = room.localParticipant?.audioLevel ?? 0.0;
-        final energy = talking ? (0.72 + audio * 1.4).clamp(0.0, 1.65).toDouble()
-          : reply ? 0.8 : thinking ? 0.43 : .19;
-        final caption = talking ? 'YOU ARE SPEAKING'
-          : reply ? 'BACY-10 IS SPEAKING'
-          : thinking ? 'THINKING'
-          : ready ? 'LISTENING'
-          : 'READY';
+        final speaking = room.localParticipant?.isSpeaking ?? false;
+        final agentState = session.agent.agentState;
+        final replying = agentState == sdk.AgentState.speaking;
+        final thinking = agentState == sdk.AgentState.thinking;
+        final connected = session.connectionState == sdk.ConnectionState.connected;
+        final level = (room.localParticipant?.audioLevel ?? 0.0).clamp(0.0, 1.0);
+        final strength = speaking ? (0.62 + level * .9).clamp(0.0, 1.4).toDouble()
+            : replying ? .82 : thinking ? .55 : connected ? .34 : .15;
+        final state = speaking ? 'YOU ARE SPEAKING' :
+            replying ? 'BACY-10 IS SPEAKING' :
+            thinking ? 'PROCESSING' : connected ? 'LISTENING' : 'STANDBY';
 
         return RepaintBoundary(child: Stack(fit: StackFit.expand, children: [
-          CustomPaint(painter: _PearlSculpture(motion.value, energy)),
-          Positioned(left: 0, right: 0, bottom: 0,
-            child: Text(caption, textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFFD3C8BA),
-                fontWeight: FontWeight.w500,
-                fontSize: 10, letterSpacing: 2.2))),
+          CustomPaint(painter: _KineticCorePainter(motion.value, strength)),
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: Text(state, textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xFFAFCBC0), fontSize: 10,
+                letterSpacing: 2.4, fontWeight: FontWeight.w600))),
         ]));
       },
     );
   }
 }
 
-class _V {
-  const _V(this.x, this.y, this.z);
+class _Vec {
+  const _Vec(this.x, this.y, this.z);
   final double x, y, z;
 
-  _V rotate(double yaw, double pitch) {
-    final cy = math.cos(yaw), sy = math.sin(yaw);
-    final cx = math.cos(pitch), sx = math.sin(pitch);
-    final a = x * cy + z * sy;
-    final b = z * cy - x * sy;
-    return _V(a, y * cx - b * sx, y * sx + b * cx);
+  _Vec operator -(_Vec b) => _Vec(x-b.x, y-b.y, z-b.z);
+  _Vec cross(_Vec b) => _Vec(y*b.z-z*b.y, z*b.x-x*b.z, x*b.y-y*b.x);
+  double dot(_Vec b) => x*b.x+y*b.y+z*b.z;
+  double get length => math.sqrt(x*x+y*y+z*z);
+
+  _Vec rotated(double yaw, double pitch, double roll) {
+    final cy=math.cos(yaw), sy=math.sin(yaw);
+    final cx=math.cos(pitch), sx=math.sin(pitch);
+    final cz=math.cos(roll), sz=math.sin(roll);
+    final x0=x*cy+z*sy, z0=z*cy-x*sy;
+    final y1=y*cx-z0*sx, z1=y*sx+z0*cx;
+    return _Vec(x0*cz-y1*sz, x0*sz+y1*cz, z1);
   }
 }
 
-class _Slice {
-  _Slice(this.path, this.depth, this.color, this.shade);
+class _Face {
+  const _Face(this.path, this.z, this.shade, this.ring);
   final Path path;
-  final double depth;
-  final Color color;
-  final double shade;
+  final double z, shade;
+  final int ring;
 }
 
-class _PearlSculpture extends CustomPainter {
-  _PearlSculpture(this.phase, this.energy);
-  final double phase, energy;
+class _KineticCorePainter extends CustomPainter {
+  _KineticCorePainter(this.phase, this.voice);
+  final double phase, voice;
 
-  static const porcelain = Color(0xFFF6ECE0);
-  static const champagne = Color(0xFFD2A979);
-  static const blush = Color(0xFFD89C83);
+  static const dark = Color(0xFF0A1212);
+  static const enamel = Color(0xFFE4F3EC);
+  static const emerald = Color(0xFF5DAB8F);
+  static const charcoal = Color(0xFF21312D);
+  static const highlight = Color(0xFFF8FFF9);
 
-  Offset projection(_V v, Offset origin, double radius) {
-    final depth = 3.9 / (3.9 - v.z * .37);
-    return Offset(origin.dx + v.x * depth * radius,
-        origin.dy + v.y * depth * radius);
+  Offset project(_Vec p, Offset center, double radius) {
+    final perspective = 3.7 / (3.7 - p.z * .6);
+    return Offset(center.dx + p.x * radius * perspective,
+      center.dy + p.y * radius * perspective);
   }
 
   @override
   void paint(Canvas canvas, Size size) {
-    final origin = Offset(size.width / 2, size.height * .46);
-    final radius = math.min(size.width, size.height) * .37;
-    final spin = phase * math.pi * 2;
-    final scale = 1 + energy * .035 + .01 * math.sin(spin * 2.1);
+    final t = phase * math.pi * 2;
+    final c = Offset(size.width * .5, size.height * .48);
+    final r = math.min(size.width, size.height) * .35;
+    final pulsation = 1 + .024 * voice + .008 * math.sin(t * 2.7);
 
-    // Dark, warm cinematic photographic environment.
-    canvas.drawCircle(origin, radius * 1.55, Paint()
-      ..shader = RadialGradient(
-        colors: [
-          champagne.withValues(alpha: .14 + energy * .075),
-          blush.withValues(alpha: .038),
-          Colors.transparent],
-        stops: const [0, .48, 1],
-      ).createShader(Rect.fromCircle(center: origin, radius: radius * 1.55)));
+    // Soft off-camera studio reflection and deep graphite space.
+    canvas.drawCircle(c, r * 1.50, Paint()
+      ..shader = RadialGradient(colors: [
+        emerald.withValues(alpha: .17 + .06 * voice),
+        charcoal.withValues(alpha: .16),
+        Colors.transparent],
+        stops: const [0, .50, 1]).createShader(
+          Rect.fromCircle(center: c, radius: r * 1.50)));
 
-    canvas.drawCircle(origin, radius * 1.01 * scale, Paint()
-      ..shader = RadialGradient(
-        center: const Alignment(-.25, -.36),
-        radius: 1.24,
-        colors: [
-          const Color(0xFF333339),
-          const Color(0xFF16171A),
-          const Color(0xFF08090C),
-          const Color(0xFF21201F),
-        ],
-        stops: const [0, .39, .78, 1],
-      ).createShader(Rect.fromCircle(
-        center: origin, radius: radius * 1.01 * scale)));
-
-    // Frosted porcelain core sits deep in the gyroscope assembly.
-    canvas.drawCircle(origin, radius * (.255 + energy * .025), Paint()
-      ..shader = RadialGradient(
-        center: const Alignment(-.45, -.48),
-        radius: 1.05,
-        colors: [
-          const Color(0xFFF6EDE0),
-          const Color(0xFFD5BFAF),
-          const Color(0xFF6D5750),
-          const Color(0xFF191619),
-        ],
-        stops: const [0, .36, .72, 1],
-      ).createShader(Rect.fromCircle(
-        center: origin, radius: radius * (.255 + energy * .025))));
-    canvas.drawCircle(origin, radius * .075, Paint()
-      ..color = porcelain.withValues(alpha: .24 + energy * .26)
+    // Volumetric core: smoked mineral glass with distinct surface refraction.
+    final sphere = r * .36 * pulsation;
+    canvas.drawCircle(c, sphere * 1.3, Paint()
+      ..color = emerald.withValues(alpha: .28 + voice * .1)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 22));
+    canvas.drawCircle(c, sphere, Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(-.40, -.44), radius: 1.05,
+        colors: [highlight, const Color(0xFFC5E4D5),
+          const Color(0xFF608D7A), const Color(0xFF203B32),
+          const Color(0xFF0B1513)],
+        stops: const [0, .19, .45, .76, 1],
+      ).createShader(Rect.fromCircle(center: c, radius: sphere)));
 
-    // Six curved glass-ceramic blades wrap in true 3D, front blades
-    // occluding back blades as the sculpture rotates.
-    final slices = <_Slice>[];
-    final yaw = spin * .54;
-    final pitch = .48 + math.sin(spin * .37) * .37;
-    for (int petal = 0; petal < 6; petal++) {
-      final base = petal * math.pi / 3;
-      final hue = petal.isEven ? porcelain : champagne;
-      for (int seg = 0; seg < 48; seg++) {
-        final u0 = seg / 48.0;
-        final u1 = (seg + 1) / 48.0;
-        _V surface(double u, int side) {
-          final theta = base + u * math.pi * 1.12 + spin * .12;
-          final amp = .19 + .74 * math.sin(u * math.pi);
-          final ridge = math.sin(u * math.pi * 1.76 + petal * .46) * .2;
-          final distance = amp * scale + (side == 0 ? -.078 : .078);
-          return _V(
-            distance * math.cos(theta),
-            (u - .5) * 1.5 + ridge + (side == 0 ? -.046 : .046),
-            distance * math.sin(theta) * .62 + math.cos(theta * 2) * .18
-          ).rotate(yaw, pitch);
+    // Torus surfaces are built as projected 3D quads.
+    // Draw far polygons before near polygons to expose physical depth.
+    final faces = <_Face>[];
+    const majorSegments=76;
+    const tubeSegments=14;
+    final light = const _Vec(-.35, -.58, .74);
+    for (var ring=0; ring<2; ring++) {
+      final yaw=t * (ring==0 ? .35 : -.28) + ring*1.15;
+      final pitch=(ring==0 ? .35 : 1.05) + math.sin(t*.27+ring)*.18;
+      final roll=(ring==0 ? .28 : -1.12) + t*(ring==0 ? .12 : -.09);
+      final tube=ring==0 ? .135 : .102;
+      final major=ring==0 ? .82 : .62;
+      _Vec surface(int uStep, int vStep) {
+        final u=uStep * math.pi * 2 / majorSegments;
+        final v=vStep * math.pi * 2 / tubeSegments;
+        final width=major+tube*math.cos(v);
+        return _Vec(width*math.cos(u),
+          width*math.sin(u), tube*math.sin(v))
+          .rotated(yaw,pitch,roll);
+      }
+      for(var u=0;u<majorSegments;u++) {
+        for(var v=0;v<tubeSegments;v++) {
+          final a=surface(u,v), b=surface(u+1,v),
+              d=surface(u,v+1), e=surface(u+1,v+1);
+          final normal=(b-a).cross(d-a);
+          final length=normal.length;
+          final facing=length < 0.000001 ? 0.0 :
+              normal.dot(light)/length;
+          final lum=(.22+.70*math.max(0.0,facing)+
+              .10*math.max(0.0,-facing)).clamp(.0,1.0).toDouble();
+          final path=Path();
+          final pa=project(a,c,r*pulsation), pb=project(b,c,r*pulsation),
+            pe=project(e,c,r*pulsation), pd=project(d,c,r*pulsation);
+          path.moveTo(pa.dx,pa.dy);
+          path.lineTo(pb.dx,pb.dy);
+          path.lineTo(pe.dx,pe.dy);
+          path.lineTo(pd.dx,pd.dy);
+          path.close();
+          faces.add(_Face(path,(a.z+b.z+d.z+e.z)*.25,lum,ring));
         }
-        final a = surface(u0, 0);
-        final b = surface(u0, 1);
-        final d = surface(u1, 0);
-        final e = surface(u1, 1);
-        final poly = Path()
-          ..moveTo(projection(a, origin, radius).dx, projection(a, origin, radius).dy)
-          ..lineTo(projection(b, origin, radius).dx, projection(b, origin, radius).dy)
-          ..lineTo(projection(e, origin, radius).dx, projection(e, origin, radius).dy)
-          ..lineTo(projection(d, origin, radius).dx, projection(d, origin, radius).dy)
-          ..close();
-        final depth = (a.z + b.z + d.z + e.z) / 4;
-        final shade = (.54 + depth * .25 +
-          math.sin(u0 * math.pi) * .34).clamp(.18, 1.0).toDouble();
-        slices.add(_Slice(poly, depth, hue, shade));
       }
     }
-    slices.sort((a, b) => a.depth.compareTo(b.depth));
-    for (final piece in slices) {
-      final color = Color.lerp(const Color(0xFF382F2D),
-          piece.color, piece.shade) ?? porcelain;
-      canvas.drawPath(piece.path, Paint()
-        ..color = color.withValues(alpha: .85));
+    faces.sort((a,b)=>a.z.compareTo(b.z));
+    for(final f in faces) {
+      final base=f.ring==0 ? emerald : enamel;
+      final color=Color.lerp(dark,base,f.shade) ?? base;
+      canvas.drawPath(f.path, Paint()..color=color);
     }
 
-    // A handful of sharp porcelain specular glints, not cartoon outlines.
-    for (int ring = 0; ring < 3; ring++) {
-      final path = Path();
-      for (int i = 0; i <= 95; i++) {
-        final a = i / 95.0 * math.pi * 2;
-        final x = math.cos(a) * (0.84 - ring * .14);
-        final y = math.sin(a) * .5;
-        final z = math.sin(a + spin * .4 + ring) * .56;
-        final p = projection(_V(x, y, z).rotate(
-          spin * (.33 + ring * .08) + ring * 1.04,
-          -.3 + ring * .47), origin, radius);
-        if (i == 0) path.moveTo(p.dx, p.dy);
-        else path.lineTo(p.dx, p.dy);
-      }
-      canvas.drawPath(path, Paint()
-        ..color = porcelain.withValues(alpha: .24 + energy * .14)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = ring == 0 ? 1.1 : .55);
-    }
+    // The core is in front of some parts of the gyroscope, giving eye-depth.
+    final lens=r*.30;
+    canvas.drawCircle(c,lens,Paint()..shader=RadialGradient(
+      center: const Alignment(-.42,-.38), radius: 1.04,
+      colors:[const Color(0xFFEDFFF3), const Color(0xFF86BBA3),
+        const Color(0xFF294B3C), const Color(0xFF0C1815)],
+      stops:const [0,.30,.68,1])
+        .createShader(Rect.fromCircle(center:c,radius:lens)));
 
-    final rim = Rect.fromCircle(center: origin, radius: radius * 1.01 * scale);
-    canvas.drawArc(rim, .4 + spin * .15, math.pi * 1.14, false, Paint()
-      ..shader = SweepGradient(colors: [
-        porcelain.withValues(alpha: .02),
-        porcelain.withValues(alpha: .52),
-        champagne.withValues(alpha: .2),
-        porcelain.withValues(alpha: .02)],
-      ).createShader(rim)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.35);
-
-    // Small vertical reflections cue the depth and state without neon waves.
+    // Tiny travelling reflection, like a moving product studio softbox.
+    final glint=Offset(c.dx-lens*.34+math.cos(t*.35)*lens*.06,
+      c.dy-lens*.38);
     canvas.drawOval(Rect.fromCenter(
-      center: Offset(origin.dx - radius * .31, origin.dy - radius * .35),
-      width: radius * .19, height: radius * .52), Paint()
-        ..color = porcelain.withValues(alpha: .14)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18));
+      center:glint,width:lens*.35,height:lens*.18),
+      Paint()
+        ..color=highlight.withValues(alpha: .54 + voice*.25)
+        ..maskFilter=const MaskFilter.blur(BlurStyle.normal,7));
+    canvas.drawCircle(c,lens*.96,Paint()
+      ..style=PaintingStyle.stroke
+      ..strokeWidth=1.6
+      ..color=enamel.withValues(alpha: .52));
   }
 
   @override
-  bool shouldRepaint(covariant _PearlSculpture old) =>
-      old.phase != phase || old.energy != energy;
+  bool shouldRepaint(covariant _KineticCorePainter old)=>
+    phase!=old.phase || voice!=old.voice;
 }
+
 '''
 
 def apply(root: Path) -> None:
