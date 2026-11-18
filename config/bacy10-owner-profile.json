@@ -3,35 +3,106 @@
   "updated": "2026-11-18",
   "visibility": "Private owner profile for BACY-10. No passwords, bank/card details, API keys, OTP, exact home address or secrets.",
   "identity": {
-    "name": "BW Silinda",
+    "name": "Basani Welcome Silinda",
     "signature": "BW Silinda",
     "country": "South Africa",
-    "home_area": "Bushbuckridge, Mpumalanga",
+    "home_area": "Bushbuckridge / Chochocho, Mpumalanga, South Africa",
     "phone": "063 724 6209",
     "email": "bacanyclinda@gmail.com",
     "relationship": "Girlfriend: Mari Shai",
-    "family": "Lives with two children; do not invent their names or ages"
+    "family": "Lives with two children; do not invent their names or ages",
+    "full_name": "Basani Welcome Silinda",
+    "preferred_signature": "BW Silinda",
+    "aliases": [
+      "Bacany Clinda",
+      "Bacy",
+      "BW Silinda"
+    ],
+    "girlfriend": "Mari Shai",
+    "children": "Lives with two children; no names/ages provided",
+    "nationality": "South African"
   },
   "education": {
     "university": "UNISA",
     "current_context": "Distance-learning education student",
-    "module_context": "INS1502; previously GRT1501, IED1501, PSC1501, CAD1501, EST1501",
-    "matric": "2024 matric Bachelor pass",
+    "module_context": [
+      "INS1502",
+      "GRT1501",
+      "IED1501",
+      "PSC1501",
+      "CAD1501",
+      "EST1501",
+      "MTE1501 Mathematics 1 for Teachers"
+    ],
+    "matric": "Passed Matric with a Bachelor's pass in 2024",
     "subjects": "Life Sciences, Physical Sciences, Agricultural Sciences, Religion Studies, Pure Mathematics, Sepedi HL, English FAL",
-    "communication": "Simple English and short explanations unless depth is requested; practical help with exams, teaching studies and study guides"
+    "communication": "Simple English and short explanations unless depth is requested; practical help with exams, teaching studies and study guides",
+    "matric_subjects": [
+      "Pure Mathematics",
+      "Physical Sciences",
+      "Life Sciences",
+      "Agricultural Sciences",
+      "Religion Studies",
+      "Sepedi Home Language",
+      "English First Additional Language"
+    ],
+    "current": "UNISA distance-learning student",
+    "unisa_subject_areas": [
+      "Education",
+      "Teaching",
+      "Mathematics for teachers",
+      "Child and adolescent development"
+    ],
+    "exam_preferences": "For multiple-choice practice, give just A/B/C/D when requested, explain when asked.",
+    "writing_preference": "Plain natural English; Harvard referencing for academic assignments when needed. Do not invent academic citations."
   },
   "skills": "Computer literate; experience at internet café and farming; actively learning and creating apps, AI systems and websites",
   "projects": {
-    "BACY-10": "Android and PC personal voice assistant; LiveKit Cloud, Gemini live, Python agent, Flutter, GitHub Actions, Cloudflare token bridge. Keep current voice, support chat and Android phone actions. User wants premium realistic live energy-orb interface.",
-    "Loop Secure": "Android Device Owner phone financing and mobile device management, offline time limits, payments and QR/USB enrolment, for Loop devices. Rain SA partnership/proposal interest.",
-    "MBMF": "Kotlin Android client/admin financing and device-management apps; admin-verified EFT and customer registration, settlement, control features.",
-    "ZORA South Africa": "Large e-commerce catalogue, gadgets, clothes and electronics, supplier sourcing, Supabase.",
-    "ENZO Tools": "Windows phone-service tooling concept for lawful device-owner servicing.",
-    "Forex": "Experimental XM MT5 EURUSD trading bot and algorithms, demo tests; avoid claiming current operation."
+    "BACY-10": "Personal LiveKit/Gemini voice assistant and Android app connected via Cloudflare Worker; British natural voice preferred, features include speech, browser tools, Android app control, camera, memory, phone integrations, live photorealistic center orb, ChatGPT-style typing and reasoning.",
+    "Loop Secure": "Mobile phone financing / Android device-owner MDM for Loop smartphones, client and admin APKs, Cloudflare worker demo, Supabase, enrolment QR/USB, offline payment due-date lock, remote management, payment approvals/history, temporary unlock, auto-update goals; possible Rain South Africa partnership. Proposals used R595/month and optional R8000 one-off price. Do not assume production features are deployed unless verified.",
+    "MBMF": "Native Kotlin and Jetpack Compose Admin/Client Android applications for phone financing, Room, WorkManager, Supabase, DevicePolicyManager, EFT with admin-verification, QR/ADB enrolment, compliance, lock/unlock and finance history.",
+    "ZORA South Africa": "E-commerce project aiming for broad catalogue of electronics, gadgets, clothes; Supabase backend; supplier sourcing; wants distinctive non-SHEIN design.",
+    "ENZO Tools": "Windows utility concept for lawful owner-authorised phone servicing; Android servicing and device-owner setup.",
+    "Forex": "XM MetaTrader 5 EURUSD demo trading bot, preference for fast trading with small profit, previously connection issues; never assume currently operational.",
+    "Construction": "Calculating slabs in square metres and labour-inclusive construction quotations; supply interest Phalaborwa.",
+    "Rain outreach": "Rain South Africa partnership pitch for Loop Secure with demo website and device-management controls; user interested in partnership, job, or purchase proposal."
   },
   "interests": "Technology, Android, AI, gadgets, smart devices, creating useful software for businesses, low-competition ventures, online retail, agriculture, construction quotations, South African Maskandi",
   "career": "Find/apply to suitable entry-level retail, cashier, general worker, hardware, cleaning and tech roles near Bushbuckridge, and pitch business software to companies",
   "development_preferences": "Hands-on coding with available GitHub and connected tools; ship real tested APKs and ZIPs, not mockups; preserve originals and do upgrades on separate branches; no unnecessary paid service",
   "voice_preferences": "Keep existing natural British BACY-10 voice; warm, fast, conversational, direct; bro or sir in suitable context",
-  "privacy": "Never disclose phone, email, family or relationship to third parties without direct owner approval. Never guess facts not supplied. Respect Android consent and never claim an action was performed unless confirmed."
+  "privacy": "Never disclose phone, email, family or relationship to third parties without direct owner approval. Never guess facts not supplied. Respect Android consent and never claim an action was performed unless confirmed.",
+  "work": {
+    "status": "Seeking suitable entry-level employment and opportunities while studying; check current status before asserting unemployed",
+    "experience": [
+      "Internet café computer use and helping customers",
+      "Practical farming experience"
+    ],
+    "interests": [
+      "Retail",
+      "Cashier",
+      "General worker",
+      "Hardware stores",
+      "Cleaning",
+      "Computer and technology support"
+    ],
+    "target_area": "Bushbuckridge, Mpumalanga; online/remote roles also considered",
+    "technical_learning": "Self-taught software development using Visual Studio Code, laptop, ChatGPT, Flutter, Python, Kotlin, Next.js, GitHub, Supabase, Cloudflare, LiveKit"
+  },
+  "preferences": {
+    "voice": "Keep existing BACY-10 British natural voice and realtime interruptions, responsive direct warm confident conversation. No need to train model from scratch.",
+    "display": "Preserve current working app except center of voice-call screen; replace five dots/lines with photorealistic subdued continuously moving blue/violet orb, not overly colorful, no cartoon. Keep controls and layout.",
+    "memory": "Auto-populate the assistant from private project files; no separate editable memory form or repeated copy-pasting. User can ask via voice to remember; changes to built-in GitHub profile require a new build/redeploy.",
+    "assistance": "Work hands-on with connected GitHub, Cloudflare and other tools, use branches and verify real builds. Short direct progress updates with useful results. No fake functionality; keep repos and backends safe.",
+    "phone": "Primarily on Android. Wants to voice-launch any installed app, torch, camera and selfie, clock/timers/alarms, quick settings, volume, messages, calls, browser, supported cross-app tasks with consent.",
+    "research": "Perform thorough research when needed, compare sources, concise default, in-depth explanations on request.",
+    "business": "Interested in low-competition profitable businesses, supplying gadgets/clothes, technology products and software to companies.",
+    "creative": "South African Maskandi with real traditional instrumentation and Zulu male vocal.",
+    "privacy": "May store owner-supplied non-secret contact/profile info in private repo as requested. Never embed passwords, credentials, bank/card details, OTPs, or precise address in source files; never reveal contact details to third parties without permission."
+  },
+  "tools_hardware": {
+    "current_mobile": "Android phone; may be LoopPhone",
+    "older_laptop": "HP Celeron N3060 Windows laptop with 4GB RAM (historical)",
+    "software": "GitHub Actions builds for Android APK, LiveKit Cloud agent, Cloudflare Worker token bridge"
+  }
 }
