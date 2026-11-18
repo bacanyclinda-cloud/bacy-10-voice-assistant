@@ -469,6 +469,8 @@ def apply(root: Path):
 
     override fun onDestroy() {''')
     manifest=mobile/"android/app/src/main/AndroidManifest.xml"
+    one(manifest,'    <queries>',
+        '    <queries>\n        <intent><action android:name="android.speech.RecognitionService" /></intent>')
     one(manifest,'    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />',
         '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />\n'
         '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />')
