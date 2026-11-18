@@ -112,8 +112,14 @@ def configure_agent(root: Path) -> None:
     docker_text = docker_text.replace(
         "WORKDIR /app\n\n# Switch to the non-privileged user",
         "WORKDIR /app\n\n# Browser tools need system libraries as well as Chromium binary.\n"
-        "RUN uv run playwright install-deps chromium\n\n"
+        "RUN /app/.venv/bin/playwright install-deps chromium\n\n"
         "# Switch to the non-privileged user",
+    )
+    # Avoid uv sync at runtime: production runs as nonroot and cannot rewrite
+    # metadata in the baked virtual environment. Execute the installed Python.
+    docker_text = docker_text.replace(
+        'CMD ["uv", "run", "src/agent.py", "start"]',
+        'CMD ["/app/.venv/bin/python", "src/agent.py", "start"]',
     )
     dockerfile.write_text(docker_text, encoding="utf-8")
 
