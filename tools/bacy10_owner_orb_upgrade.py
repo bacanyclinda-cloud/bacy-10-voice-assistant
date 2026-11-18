@@ -151,20 +151,20 @@ class _BacyOrbPainter extends CustomPainter {
 
 def apply(root: Path) -> None:
     src = root / "agent/src"
-    (src / "owner_context.py").write_text("OWNER_PROFILE = " + repr(OWNER_PROFILE) + "\\n", encoding="utf-8")
+    (src / "owner_context.py").write_text("OWNER_PROFILE = " + repr(OWNER_PROFILE) + "\n", encoding="utf-8")
     entry = src / "agent.py"
     agent_text = entry.read_text(encoding="utf-8")
     agent_text = agent_text.replace("from phone_tools import PhoneTools",
-                                    "from phone_tools import PhoneTools\\nfrom owner_context import OWNER_PROFILE", 1)
+                                    "from phone_tools import PhoneTools\nfrom owner_context import OWNER_PROFILE", 1)
     agent_text = agent_text.replace(
-        "instructions=textwrap.dedent(", "instructions=OWNER_PROFILE + '\\n\\n' + textwrap.dedent(", 1)
+        "instructions=textwrap.dedent(", "instructions=OWNER_PROFILE + '\n\n' + textwrap.dedent(", 1)
     entry.write_text(agent_text, encoding="utf-8")
 
     mobile = root / "mobile"
     (mobile / "lib/widgets/bacy10_voice_orb.dart").write_text(ORB_DART, encoding="utf-8")
     screen = mobile / "lib/screens/agent_screen.dart"
     dart = screen.read_text(encoding="utf-8")
-    dart = dart.replace("import 'dart:math' show max;", "import 'dart:math' show max;\\nimport '../widgets/bacy10_voice_orb.dart';", 1)
+    dart = dart.replace("import 'dart:math' show max;", "import 'dart:math' show max;\nimport '../widgets/bacy10_voice_orb.dart';", 1)
     before = '''                    return const components.AudioVisualizerWidget(
                       options: components.AudioVisualizerWidgetOptions(
                         barCount: 5,
@@ -182,8 +182,8 @@ def apply(root: Path) -> None:
     # Owner explicitly requests the GitHub profile instead of a manual memory screen.
     welcome = mobile / "lib/screens/welcome_screen.dart"
     dart = welcome.read_text(encoding="utf-8")
-    dart = dart.replace("import 'bacy10_memory_screen.dart';\\n", "", 1)
-    start = dart.find("                  TextButton.icon(\\n")
+    dart = dart.replace("import 'bacy10_memory_screen.dart';\n", "", 1)
+    start = dart.find("                  TextButton.icon(\n")
     if start >= 0 and "My private memory" in dart[start:start + 450]:
         end = dart.index("                  const SizedBox(height: 22),", start)
         # Preserve surrounding spacing; remove only the editable memory control.
