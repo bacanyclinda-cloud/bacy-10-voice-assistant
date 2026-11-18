@@ -116,7 +116,7 @@ function BacyVoice() {
         setPhase("error");
         return;
       }
-      const bytes = Uint8Array.from(atob(result.audio), character => character.charCodeAt(0));
+      const bytes = Uint8Array.from(Array.from(atob(result.audio)), character => character.charCodeAt(0));
       const decoded = await ctx.decodeAudioData(bytes.buffer);
       if (!mounted.current || request !== audioRequestNumber.current) return;
       await ctx.resume();
