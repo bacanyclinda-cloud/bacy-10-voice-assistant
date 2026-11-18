@@ -1,0 +1,65 @@
+name: BACY-10 LiveKit Cloud Agent
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "First time: create. Later updates: deploy."
+        type: choice
+        options: [create, deploy]
+        default: create
+      agent_id:
+        description: "Required for deploy updates: existing LiveKit agent ID"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: livekit-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate private deployment credentials are configured
+        env:
+          LK_URL: ${{ secrets.LIVEKIT_URL }}
+          LK_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LK_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+          GOOGLE_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          [ -n "$LK_URL" ] || { echo "Missing LIVEKIT_URL repository secret"; exit 1; }
+          [ -n "$LK_KEY" ] || { echo "Missing LIVEKIT_API_KEY repository secret"; exit 1; }
+          [ -n "$LK_SECRET" ] || { echo "Missing LIVEKIT_API_SECRET repository secret"; exit 1; }
+          [ -n "$GOOGLE_KEY" ] || { echo "Missing GOOGLE_API_KEY repository secret"; exit 1; }
+      - name: Build original tutorial agent with BACY-10 identity
+        run: python tools/bacy10_build_livekit_package.py --output build/BACY10-LIVEKIT-FULL-SOURCE
+      - name: Install official LiveKit CLI
+        run: curl -sSL https://get.livekit.io/cli | bash
+      - name: Deploy the real agent to LiveKit Cloud
+        env:
+          LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPERATION: ${{ inputs.operation }}
+          AGENT_ID: ${{ inputs.agent_id }}
+        run: |
+          set -euo pipefail
+          lk project add --url "$LIVEKIT_URL" --api-key "$LIVEKIT_API_KEY" --api-secret "$LIVEKIT_API_SECRET" --default bacy10
+          SECRET_FILE="$RUNNER_TEMP/bacy10-agent-secrets.env"
+          umask 077
+          printf 'GOOGLE_API_KEY=%s\n' "$GOOGLE_API_KEY" > "$SECRET_FILE"
+          cd build/BACY10-LIVEKIT-FULL-SOURCE/agent
+          if [ "$OPERATION" = "create" ]; then
+            lk agent create --region eu-central --secrets-file "$SECRET_FILE"
+          else
+            [ -n "$AGENT_ID" ] || { echo "agent_id required for deploy"; exit 1; }
+            lk agent deploy --id "$AGENT_ID" --secrets-file "$SECRET_FILE"
+          fi
+          rm -f "$SECRET_FILE"
