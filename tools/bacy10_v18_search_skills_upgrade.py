@@ -190,6 +190,10 @@ def test_search_rejects_empty_query():
                         # Tools
 
                         - If the user names""")
+    one(a, "                        - Only use search_the_web when no website, service, domain, or current destination is specified and a general internet lookup is needed. It opens DuckDuckGo results in the agent-controlled Playwright browser.",
+        "                        - Use search_the_web for current public information; it now returns structured sources and summaries without requiring browser navigation.")
+    one(a, "                        - After search_the_web, use inspect_page or read_page to read the DuckDuckGo results before answering. Open a result when the search page does not provide enough detail.",
+        "                        - Answer using the source summaries from search_the_web; open a result for additional context or verification.")
     pubspec=root/"mobile/pubspec.yaml"
     one(pubspec,"version: 1.7.0+21","version: 1.8.0+22")
-'''
+
