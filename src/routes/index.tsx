@@ -236,7 +236,7 @@ function BacyVoice() {
       if (!mounted.current) return;
       setLevel(0);
       // Android can return a valid interim word but finish before marking isFinal.
-      const transcript = finalText.trim() || bestText.trim();
+      const transcript = bestText.trim() || finalText.trim();
       if (transcript && !failed) {
         void send(transcript);
       } else if (retryNoSpeech && !manuallyStopped.current) {
@@ -297,6 +297,14 @@ function BacyVoice() {
     beginListening();
   }
 
+  function testSpeaker() {
+    // An explicitly labelled local TTS test, not a fabricated AI answer.
+    const testLine = "Good day, sir. This is BACY-10. My speaker test is working.";
+    setError("");
+    setReply(testLine);
+    say(testLine);
+  }
+
   function submitTyped(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const content = draft.trim();
@@ -341,7 +349,10 @@ function BacyVoice() {
           <button type="button" onClick={() => setTextMode(false)}>Close</button>
         </form>}
         {(phase === "error" || !speechAvailable) && !textMode &&
-          <button className="voice-text-fallback" type="button" onClick={() => setTextMode(true)}>Type instead</button>}
+          <div className="voice-recovery">
+            <button className="voice-text-fallback" type="button" onClick={testSpeaker}>Test speaker</button>
+            <button className="voice-text-fallback" type="button" onClick={() => setTextMode(true)}>Type instead</button>
+          </div>}
       </section>
       <span className="voice-footer" aria-hidden="true">{voiceLabel && phase === "speaking" ? "BRITISH VOICE · " + voiceLabel : "BACY-10 / VOICE INTERFACE"}</span>
     </main>
