@@ -136,10 +136,26 @@ function BacyVoice() {
     utterance.pitch = 0.9;
     utterance.volume = 1;
     setVoiceLabel(choice ? choice.name : "Device voice");
-    setPhase("speaking");
-    utterance.onstart = () => { if (mounted.current) setPhase("speaking"); };
-    utterance.onend = () => { if (mounted.current) setPhase("idle"); };
+    let hasStarted = false;
+    // A reply on screen is not evidence that audio playback actually started.
+    const watchdog = window.setTimeout(() => {
+      if (!mounted.current || hasStarted) return;
+      if (!synth.speaking) {
+        setError("The browser returned a reply but did not start audio playback. Open the standalone preview in Chrome and check Android text-to-speech settings.");
+        setPhase("error");
+      }
+    }, 10000);
+    utterance.onstart = () => {
+      hasStarted = true;
+      window.clearTimeout(watchdog);
+      if (mounted.current) setPhase("speaking");
+    };
+    utterance.onend = () => {
+      window.clearTimeout(watchdog);
+      if (mounted.current) setPhase("idle");
+    };
     utterance.onerror = (event) => {
+      window.clearTimeout(watchdog);
       if (!mounted.current || event.error === "interrupted" || event.error === "canceled") return;
       setError("The device could not play the response aloud. Check media volume and text-to-speech settings, then tap to try again.");
       setPhase("error");
@@ -189,6 +205,7 @@ function BacyVoice() {
       return;
     }
     window.speechSynthesis?.cancel();
+    window.speechSynthesis?.resume(); // Unblock browser audio inside the user's tap gesture.
     firstTap.current = true;
     setError("");
     setReply("");
@@ -204,14 +221,18 @@ function BacyVoice() {
     let wasStopped = false;
     instance.onstart = () => { if (mounted.current) setPhase("listening"); };
     instance.onresult = (event) => {
-      let provisional = "";
+      const finalParts: string[] = [];
+      const provisionalParts: string[] = [];
       for (let i = 0; i < event.results.length; i++) {
         const segment = event.results[i];
         if (!segment) continue;
-        if (segment.isFinal) finalText += (finalText ? " " : "") + (segment[0]?.transcript ?? "");
-        else provisional += (provisional ? " " : "") + (segment[0]?.transcript ?? "");
+        const transcript = segment[0]?.transcript?.trim();
+        if (!transcript) continue;
+        if (segment.isFinal) finalParts.push(transcript);
+        else provisionalParts.push(transcript);
       }
-      if (mounted.current) setHeard((finalText + " " + provisional).trim());
+      finalText = finalParts.join(" ");
+      if (mounted.current) setHeard([...finalParts, ...provisionalParts].join(" "));
     };
     instance.onerror = (event) => {
       // Android Chrome often ends recognition after one utterance; only actual errors get shown.
