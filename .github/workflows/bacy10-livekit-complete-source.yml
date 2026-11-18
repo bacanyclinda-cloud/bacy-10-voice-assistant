@@ -84,9 +84,15 @@ jobs:
       - name: Compile Python agent
         working-directory: source/agent
         run: uv run python -m compileall -q src
-      - name: Run upstream agent tests
+      - name: Install real Playwright Chromium for browser tests
         working-directory: source/agent
-        run: uv run pytest -q
+        run: uv run playwright install --with-deps chromium
+      - name: Run offline agent and real browser tests
+        working-directory: source/agent
+        run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_browser.py
+      # The upstream tests/test_agent.py evaluates live LLM responses using a
+      # real LiveKit inference API key. Run it ONLY in your configured environment;
+      # no fabricated keys are supplied to CI.
 
   flutter-android:
     name: Check Flutter Android source and compile debug APK
