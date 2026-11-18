@@ -135,6 +135,16 @@ jobs:
           path: source/mobile/build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 14
           if-no-files-found: error
+      - name: Compile Android release-style APK (private testing signature)
+        working-directory: source/mobile
+        run: flutter build apk --release
+      - name: Upload BACY-10 Android release-style APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BACY10-LIVEKIT-ANDROID-RELEASE
+          path: source/mobile/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
+          if-no-files-found: error
 
   nextjs-web:
     name: Build complete Next.js LiveKit web frontend
