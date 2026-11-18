@@ -16,6 +16,9 @@ import tempfile
 from pathlib import Path
 
 from bacy10_phone_memory_upgrade import apply as apply_personal_phone_upgrade
+from bacy10_android_device_controls import apply as apply_device_controls
+from bacy10_center_orb import apply as apply_center_orb
+from bacy10_owner_profile_upgrade import apply as apply_built_in_profile
 
 SOURCE_URL = "https://github.com/ruxakK/jarvis-voice-butler.git"
 SOURCE_SHA = "d1cf71e40c72d2429af766646bea4869ba736c77"
@@ -588,6 +591,9 @@ def main() -> None:
     configure_agent(output)
     configure_flutter(output)
     apply_personal_phone_upgrade(output)
+    apply_device_controls(output)
+    apply_center_orb(output)
+    apply_built_in_profile(output)
     configure_web(output)
     write_guide(output)
     agent_dir = output / "agent" / "src"
