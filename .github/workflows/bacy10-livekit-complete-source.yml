@@ -44,6 +44,7 @@ jobs:
           assert (root/"mobile/android/app/build.gradle").is_file()
           assert (root/"mobile/assets/.env").is_file()
           assert not list(root.rglob(".env.local")), "Private environment file must never be bundled"
+          assert not [p for p in root.rglob("*") if p.suffix.lower() in {".otf", ".ttf", ".woff", ".woff2", ".eot"}], "Font binaries are excluded from the distribution"
           agent=(root/"agent/src/agent.py").read_text()
           assert 'agent_name="bacy-10"' in agent
           assert "gemini-3.1-flash-live-preview" in agent
@@ -129,3 +130,29 @@ jobs:
           path: source/mobile/build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 14
           if-no-files-found: error
+
+  nextjs-web:
+    name: Build complete Next.js LiveKit web frontend
+    needs: source-bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: BACY10-LIVEKIT-FULL-SOURCE
+          path: ./source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+      - name: Install real frontend dependencies
+        working-directory: source/agent/frontend
+        run: pnpm install --frozen-lockfile
+      - name: Build LiveKit Next.js web frontend
+        working-directory: source/agent/frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: pnpm build
