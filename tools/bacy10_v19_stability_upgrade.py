@@ -213,6 +213,7 @@ def apply(root: Path) -> None:
     begin=content.index("class AgentTrackView extends StatelessWidget")
     end=content.index("class FrontView extends StatelessWidget",begin)
     content=content[:begin]+REPLACEMENT_ORB+"\n"+content[end:]
+    content=content.replace("import '../support/agent_selector.dart';\n", "")
     agent_screen.write_text(content,encoding="utf-8")
 
     ctrl=mobile/"lib/controllers/app_ctrl.dart"
