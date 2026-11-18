@@ -121,6 +121,11 @@ def configure_web(root: Path) -> None:
         raise RuntimeError("Could not replace upstream local-font setup")
     text = text[:start] + text[end:]
     text = text.replace("        commitMono.variable,\n", "")
+    # Keep JSX formatted correctly for the frontend's enforced Prettier lint rule.
+    text = text.replace(
+        "className={cn(\n        publicSans.variable,\n        'scroll-smooth font-sans antialiased'\n      )}",
+        "className={cn(publicSans.variable, 'scroll-smooth font-sans antialiased')}",
+    )
     layout.write_text(text, encoding="utf-8")
     css = web / "styles" / "globals.css"
     css.write_text(
