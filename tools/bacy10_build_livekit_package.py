@@ -18,6 +18,7 @@ from pathlib import Path
 from bacy10_phone_memory_upgrade import apply as apply_personal_phone_upgrade
 from bacy10_assistant_reliability_upgrade import apply as apply_reliability_upgrade
 from bacy10_v15_assistant_upgrade import apply as apply_v15_assistant
+from bacy10_v16_visual_results_upgrade import apply as apply_visual_results
 from bacy10_android_device_controls import apply as apply_device_controls
 from bacy10_center_orb import apply as apply_center_orb
 from bacy10_owner_profile_upgrade import apply as apply_built_in_profile
@@ -598,6 +599,7 @@ def main() -> None:
     apply_built_in_profile(output)
     apply_reliability_upgrade(output)
     apply_v15_assistant(output)
+    apply_visual_results(output)
     configure_web(output)
     write_guide(output)
     agent_dir = output / "agent" / "src"
