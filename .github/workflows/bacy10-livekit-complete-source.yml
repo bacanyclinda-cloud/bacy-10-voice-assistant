@@ -5,10 +5,17 @@ on:
   push:
     branches:
       - feature/bacy10-livekit-complete-source-20261118
+      - fix/bacy10-connected-mobile-cloud-20261118
+      - main
     paths:
       - .github/workflows/bacy10-livekit-complete-source.yml
       - tools/bacy10_build_livekit_package.py
       - BACY10-LIVEKIT-DOWNLOAD.md
+
+# Only test the newest source revision; cancel obsolete APK builds on this branch.
+concurrency:
+  group: bacy10-package-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -51,7 +58,10 @@ jobs:
           assert "BrowserTools" in agent
           mobile=(root/"mobile/lib/controllers/app_ctrl.dart").read_text()
           assert "connectionError" in mobile
-          assert "bacy-10-not-configured" in mobile
+          assert "EndpointTokenSource" in mobile
+          assert "PairingTokenClient" in mobile
+          assert "LIVEKIT_SANDBOX_ID" not in mobile
+          assert "LIVEKIT_TOKEN_ENDPOINT=" in (root/"mobile/assets/.env").read_text()
           print("SOURCE VALIDATION PASSED: real agent, browser tools, web app, Flutter mobile and safe templates")
           PY
           find build/BACY10-LIVEKIT-FULL-SOURCE -type d -name __pycache__ -prune -exec rm -rf '{}' +
@@ -128,6 +138,16 @@ jobs:
         with:
           name: BACY10-LIVEKIT-ANDROID-DEBUG
           path: source/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14
+          if-no-files-found: error
+      - name: Compile Android release-style APK (private testing signature)
+        working-directory: source/mobile
+        run: flutter build apk --release
+      - name: Upload BACY-10 Android release-style APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BACY10-LIVEKIT-ANDROID-RELEASE
+          path: source/mobile/build/app/outputs/flutter-apk/app-release.apk
           retention-days: 14
           if-no-files-found: error
 
