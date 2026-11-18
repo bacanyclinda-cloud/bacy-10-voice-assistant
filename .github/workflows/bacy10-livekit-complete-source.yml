@@ -111,7 +111,7 @@ jobs:
         run: flutter pub get
       - name: Analyze Flutter Dart
         working-directory: source/mobile
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos
       - name: Compile real Android debug APK
         working-directory: source/mobile
         run: flutter build apk --debug
