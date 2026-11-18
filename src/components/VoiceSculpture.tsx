@@ -53,7 +53,7 @@ void main(){
   warp += (fbm(p * 3.6 + vec2(slow * .6,-slow * .28)) - .5) * (.12 + activity * .07);
   float radius = .78 + warp + activity * .085 * sin(angle * 4.0 + t * 2.1);
   float d = dist - radius;
-  float inner = smoothstep(.065, -.085, d);
+  float inner = 1.0 - smoothstep(-.085, .065, d);
   float z = sqrt(max(.0, 1.0 - pow(dist / max(.24,radius), 2.0)));
   vec3 N = normalize(vec3(p.x * 1.02, p.y * 1.11, z * 1.1 + .001));
   float n = fbm(p * 4.1 + vec2(slow * .8, -slow * .3));
@@ -95,7 +95,7 @@ void main(){
   vec2 starGrid = floor((uv + vec2(t * .002,-t * .001)) * 65.0);
   vec2 local = fract((uv + vec2(t * .002,-t * .001)) * 65.0) - .5;
   float chance = step(.992,hash(starGrid));
-  float dust = chance * smoothstep(.09,.0,length(local)) * .11 * (1.0 - inner);
+  float dust = chance * (1.0 - smoothstep(.0,.09,length(local))) * .11 * (1.0 - inner);
   color += vec3(.28,.35,.45) * dust;
 
   // ACES-style tone map.
