@@ -95,7 +95,7 @@ jobs:
           assert (root/"agent/src/image_provider.py").is_file()
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyWakeService.kt").is_file()
           assert "bacy10_pairing_code" not in (root/"mobile/lib/screens/welcome_screen.dart").read_text()
-          assert "TextField" not in (root/"mobile/lib/screens/welcome_screen.dart").read_text()
+          assert "RESTORE VOICE CONNECTION" in (root/"mobile/lib/screens/welcome_screen.dart").read_text(), "New installs must have one-time secure connection recovery"
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyWakeListener.kt").is_file()
           assert "setScreenShareEnabled(true)" in mobile
           assert "PhoneTools" in agent
