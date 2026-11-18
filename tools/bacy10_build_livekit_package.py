@@ -160,63 +160,251 @@ def configure_flutter(root: Path) -> None:
     mobile = root / "mobile"
     manifest = mobile / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
     replace_once(manifest, 'android:label="Voice Assistant"', 'android:label="BACY-10"')
+
+    # Use a real server token endpoint, not a removed Sandbox feature or a demo.
     ctrl = mobile / "lib" / "controllers" / "app_ctrl.dart"
-    # The tutorial falls back to the LiveKit showcase agent if not configured.
-    # BACY-10 must never silently use a demo or pretend it is the user's own AI.
-    old = """  void connect() async {
-    if (isSessionStarting) {"""
-    new = """  String? connectionError;
+    text = ctrl.read_text(encoding="utf-8")
+    text = text.replace(
+        "import 'package:flutter_dotenv/flutter_dotenv.dart';",
+        "import 'package:flutter_dotenv/flutter_dotenv.dart';\n"
+        "import '../support/bacy10_token_client.dart';",
+    )
+    start = text.index("    // Development-only hardcoded credentials")
+    end = text.index("    return sdk.Session.fromConfigurableTokenSource(", start)
+    text = text[:start] + """    final endpoint = dotenv.env['LIVEKIT_TOKEN_ENDPOINT']?.trim() ?? '';
+    if (!endpoint.startsWith('https://')) {
+      throw StateError('BACY-10 requires a secure token endpoint. Check assets/.env.');
+    }
+    final tokenSource = sdk.EndpointTokenSource(
+      url: Uri.parse(endpoint),
+      client: PairingTokenClient(),
+    );
+
+""" + text[end:]
+    text = text.replace(
+        "  void connect() async {\n    if (isSessionStarting) {",
+        """  String? connectionError;
 
   void connect() async {
-    final sandboxId = dotenv.env['LIVEKIT_SANDBOX_ID']?.replaceAll('"', '').trim();
-    if (sandboxId == null || sandboxId.isEmpty || sandboxId == '<your-sandbox-id>') {
-      connectionError = 'Connect BACY-10 to your own LiveKit project. Set LIVEKIT_SANDBOX_ID in assets/.env first.';
+    if (!await PairingTokenClient.hasPairingCode()) {
+      connectionError = 'Enter your BACY-10 pairing code to connect securely.';
       notifyListeners();
       return;
     }
     connectionError = null;
-    if (isSessionStarting) {"""
-    replace_once(ctrl, old, new)
-    # Prevent even accidental connections to the original public demo.
-    old_demo = "tokenSource = sdk.EndpointTokenSource(url: Uri.parse(homepageAgentTokenEndpoint));"
-    new_demo = "tokenSource = sdk.DevelopmentTokenSource(id: 'bacy-10-not-configured');"
-    replace_once(ctrl, old_demo, new_demo)
+    if (isSessionStarting) {""",
+    )
+    text = text.replace(
+        """      _logger.severe('Connection error: $error', error, stackTrace);
+      appScreenState = AppScreenState.welcome;""",
+        """      _logger.severe('Connection error: $error', error, stackTrace);
+      connectionError = 'Could not connect to BACY-10: ' + error.toString();
+      appScreenState = AppScreenState.welcome;""",
+    )
+    text = text.replace(
+        """      if (session.connectionState == sdk.ConnectionState.connected) {
+        appScreenState = AppScreenState.agent;
+        notifyListeners();
+      }""",
+        """      if (session.connectionState == sdk.ConnectionState.connected) {
+        appScreenState = AppScreenState.agent;
+        connectionError = null;
+        notifyListeners();
+      } else {
+        connectionError = 'No LiveKit session was established. Check that the agent is deployed.';
+        notifyListeners();
+      }""",
+    )
+    ctrl.write_text(text, encoding="utf-8")
+
+    pairing = mobile / "lib" / "support" / "bacy10_token_client.dart"
+    pairing.write_text(r"""import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+
+/// Reads the user's pairing code from Android encrypted storage at request time.
+/// Neither LiveKit API secret nor Gemini API key is stored on the phone.
+class PairingTokenClient extends http.BaseClient {
+  static const _storage = FlutterSecureStorage();
+  static const _key = 'bacy10_pairing_code';
+  final http.Client _delegate = http.Client();
+
+  static Future<String?> readCode() => _storage.read(key: _key);
+  static Future<bool> hasPairingCode() async =>
+      (await readCode())?.trim().isNotEmpty ?? false;
+  static Future<void> saveCode(String value) =>
+      _storage.write(key: _key, value: value.trim());
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final code = await readCode();
+    if (code != null && code.trim().isNotEmpty) {
+      request.headers['Authorization'] = 'Bearer ' + code.trim();
+    }
+    return _delegate.send(request);
+  }
+
+  @override
+  void close() {
+    _delegate.close();
+    super.close();
+  }
+}
+""", encoding="utf-8")
 
     welcome = mobile / "lib" / "screens" / "welcome_screen.dart"
-    replace_once(
-        welcome,
-        "                // Agent status indicator",
-        """                Consumer<ctrl.AppCtrl>(
-                  builder: (context, appCtrl, child) {
-                    if (appCtrl.connectionError == null) return const SizedBox.shrink();
-                    return Text(
-                      appCtrl.connectionError!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.redAccent, fontSize: 13),
-                    );
-                  },
-                ),
-                // Agent status indicator""",
+    welcome.write_text(r"""import 'package:flutter/material.dart';
+import 'package:livekit_client/livekit_client.dart' as sdk;
+import 'package:provider/provider.dart';
+import '../controllers/app_ctrl.dart' as ctrl;
+import '../support/bacy10_token_client.dart';
+
+/// Real phone connection screen. No fake telemetry or simulated dialogue.
+class WelcomeScreen extends StatefulWidget {
+  const WelcomeScreen({super.key});
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  final pairing = TextEditingController();
+  bool saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    PairingTokenClient.readCode().then((code) {
+      if (mounted && code != null) pairing.text = code;
+    });
+  }
+
+  @override
+  void dispose() {
+    pairing.dispose();
+    super.dispose();
+  }
+
+  Future<void> startCall(ctrl.AppCtrl controller) async {
+    if (saving || controller.isSessionStarting) return;
+    setState(() => saving = true);
+    try {
+      if (pairing.text.trim().isNotEmpty) {
+        await PairingTokenClient.saveCode(pairing.text.trim());
+      }
+      if (!mounted) return;
+      controller.connect();
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: const Color(0xFF05070B),
+    child: SafeArea(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Consumer2<ctrl.AppCtrl, sdk.Session>(
+              builder: (ctx, controller, session, _) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('BACY—10', style: TextStyle(color: Color(0xFFE7F0F4), fontSize: 29, letterSpacing: 9, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 12),
+                  const Text('PERSONAL VOICE INTELLIGENCE', style: TextStyle(color: Color(0xFF8FABB8), fontSize: 10, letterSpacing: 2.4)),
+                  const SizedBox(height: 75),
+                  Container(
+                    width: 142, height: 142,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFF3C6579), width: 1.2),
+                      gradient: const RadialGradient(colors: [Color(0xFF33596B), Color(0xFF14212C), Color(0xFF090E14)]),
+                      boxShadow: const [BoxShadow(color: Color(0x332A7A9B), blurRadius: 55, spreadRadius: 15)],
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.graphic_eq, color: Color(0xFFACD9E8), size: 50),
+                    ),
+                  ),
+                  const SizedBox(height: 66),
+                  const Text('Connect to your voice agent', textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 14),
+                  const Text('Your LiveKit room credentials are issued by your private server. Enter the pairing code once to connect.',
+                    textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF91A4B1), fontSize: 13, height: 1.55)),
+                  const SizedBox(height: 34),
+                  TextField(
+                    controller: pairing,
+                    obscureText: true,
+                    enableSuggestions: false,
+                    autocorrect: false,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'Pairing code',
+                      labelStyle: const TextStyle(color: Color(0xFF92ABB8)),
+                      filled: true, fillColor: const Color(0xFF111B24),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF29414E))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFA9D7E5))),
+                    ),
+                  ),
+                  if (controller.connectionError != null) ...[
+                    const SizedBox(height: 16),
+                    Text(controller.connectionError!, textAlign: TextAlign.center,
+                      style: const TextStyle(color: Color(0xFFEAB8A8), fontSize: 12)),
+                  ],
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity, height: 52,
+                    child: ElevatedButton(
+                      onPressed: (saving || controller.isSessionStarting || session.connectionState != sdk.ConnectionState.disconnected)
+                          ? null : () => startCall(controller),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFB5E3EC), foregroundColor: const Color(0xFF0B1A25),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(saving || controller.isSessionStarting ? 'CONNECTING…' : 'START VOICE CALL'),
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  const Text('REAL-TIME AUDIO • LIVEKIT CLOUD',
+                    style: TextStyle(color: Color(0xFF5A7180), fontSize: 9, letterSpacing: 2)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+""", encoding="utf-8")
+    pubspec = mobile / "pubspec.yaml"
+    p = pubspec.read_text(encoding="utf-8")
+    p = p.replace("  flutter_dotenv: ^6.0.0\n", "  flutter_dotenv: ^6.0.0\n  flutter_secure_storage: ^9.2.4\n")
+    p = p.replace("version: 1.0.0+14", "version: 1.1.0+15")
+    pubspec.write_text(p, encoding="utf-8")
+
+    gradle = mobile / "android" / "app" / "build.gradle"
+    gradle.write_text(
+        gradle.read_text(encoding="utf-8").replace(
+            'applicationId = "com.livekit.example.VoiceAssistantFlutter"',
+            'applicationId = "za.co.bacy10.personalassistant"',
+        ), encoding="utf-8",
     )
-    replace_once(
-        welcome,
-        "Start a call to chat with your voice agent. Need help getting set up? Check out the ",
-        "Speak with BACY-10, your real LiveKit voice agent. Set up your own LiveKit connection first. See the ",
-    )
+
+    # Public endpoint URL is safe to package; no LiveKit API secrets are embedded.
     (mobile / "assets" / ".env").write_text(
-        "# Development configuration only. Add your LiveKit sandbox ID here.\n"
-        "# Never place LIVEKIT_API_SECRET, GOOGLE_API_KEY or OpenAI secrets in an APK.\n"
-        "LIVEKIT_SANDBOX_ID=\nLIVEKIT_AGENT_NAME=bacy-10\nLIVEKIT_AGENT_DEPLOYMENT=\n",
+        "LIVEKIT_TOKEN_ENDPOINT=https://bacy10-livekit-bridge.loopsecure-bacanyclinda.workers.dev/token\n"
+        "LIVEKIT_AGENT_NAME=bacy-10\nLIVEKIT_AGENT_DEPLOYMENT=\n",
         encoding="utf-8",
     )
-    # Flutter's default files remain editable and the Android project is not a mock.
-    main_dart = mobile / "lib" / "main.dart"
-    txt = main_dart.read_text(encoding="utf-8")
-    txt = txt.replace(
-        "// The file is optional; without it the app connects to a default agent (see app_ctrl.dart)",
-        "// BACY-10 requires your own LiveKit sandbox ID; no demo agent is used.",
-    )
-    main_dart.write_text(txt, encoding="utf-8")
+    app = mobile / "lib" / "app.dart"
+    t = app.read_text(encoding="utf-8")
+    t = t.replace("title: 'Voice Assistant'", "title: 'BACY-10'")
+    t = t.replace("// themeMode: ThemeMode.dark,", "themeMode: ThemeMode.dark,")
+    app.write_text(t, encoding="utf-8")
+
 
 
 def write_guide(root: Path) -> None:
