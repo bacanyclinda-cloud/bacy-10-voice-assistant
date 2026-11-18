@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { VoiceSculpture, type VoicePhase } from "@/components/VoiceSculpture";
 import { askBacy } from "@/lib/bacy.functions";
+import { readSpeechResults, type BrowserSpeechResult } from "@/lib/speech-results";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -16,8 +17,7 @@ export const Route = createFileRoute("/")({
 });
 
 type HistoryMessage = { role: "user" | "assistant"; content: string };
-type SpeechResult = { isFinal: boolean; 0: { transcript: string } };
-type SpeechEvent = { results: ArrayLike<SpeechResult>; resultIndex: number };
+type SpeechEvent = { results: ArrayLike<BrowserSpeechResult>; resultIndex: number };
 type SpeechError = { error: string };
 type Recognizer = {
   lang: string; continuous: boolean; interimResults: boolean;
@@ -25,6 +25,9 @@ type Recognizer = {
   onresult: ((event: SpeechEvent) => void) | null;
   onend: (() => void) | null;
   onerror: ((event: SpeechError) => void) | null;
+  onaudiostart?: (() => void) | null;
+  onspeechstart?: (() => void) | null;
+  onspeechend?: (() => void) | null;
   start: () => void; stop: () => void; abort: () => void;
 };
 type SpeechBrowser = Window & {
@@ -44,76 +47,16 @@ function BacyVoice() {
   const [speechAvailable, setSpeechAvailable] = useState(true);
   const [voiceLabel, setVoiceLabel] = useState("");
   const recognizer = useRef<Recognizer | null>(null);
-  const stream = useRef<MediaStream | null>(null);
-  const meterContext = useRef<AudioContext | null>(null);
-  const meterFrame = useRef<number | null>(null);
+  // Recognition controls the microphone itself. A second getUserMedia capture
+  // can disrupt the browser recognition service on Android.
+  const recognitionWatchdog = useRef<number | null>(null);
+  const recognitionRetry = useRef<number | null>(null);
+  const manuallyStopped = useRef(false);
   const history = useRef<HistoryMessage[]>([]);
   const mounted = useRef(true);
   const firstTap = useRef(false);
   const busy = useRef(false);
 
-  function stopMeter() {
-    if (meterFrame.current !== null) cancelAnimationFrame(meterFrame.current);
-    meterFrame.current = null;
-    stream.current?.getTracks().forEach((track) => track.stop());
-    stream.current = null;
-    if (meterContext.current) void meterContext.current.close().catch(() => {});
-    meterContext.current = null;
-    if (mounted.current) setLevel(0);
-  }
-
-  useEffect(() => {
-    mounted.current = true;
-    const Speech = (window as SpeechBrowser).SpeechRecognition ?? (window as SpeechBrowser).webkitSpeechRecognition;
-    setSpeechAvailable(Boolean(Speech));
-    return () => {
-      mounted.current = false;
-      recognizer.current?.abort();
-      stopMeter();
-      window.speechSynthesis?.cancel();
-    };
-  }, []);
-
-  async function startMeter() {
-    // This stream exists only to visualise actual microphone input. It is not saved or uploaded.
-    if (!navigator.mediaDevices?.getUserMedia) return;
-    try {
-      const capture = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
-      if (!mounted.current || !recognizer.current) {
-        capture.getTracks().forEach((track) => track.stop());
-        return;
-      }
-      stream.current = capture;
-      const audio = new AudioContext();
-      meterContext.current = audio;
-      if (audio.state === "suspended") await audio.resume();
-      const analyser = audio.createAnalyser();
-      analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.75;
-      audio.createMediaStreamSource(capture).connect(analyser);
-      const values = new Uint8Array(analyser.fftSize);
-      let last = 0;
-      const sample = (time: number) => {
-        analyser.getByteTimeDomainData(values);
-        let sum = 0;
-        for (let i = 0; i < values.length; i++) {
-          const v = (values[i] - 128) / 128;
-          sum += v * v;
-        }
-        if (time - last > 55 && mounted.current) {
-          setLevel(Math.min(1, Math.sqrt(sum / values.length) * 5.2));
-          last = time;
-        }
-        meterFrame.current = requestAnimationFrame(sample);
-      };
-      meterFrame.current = requestAnimationFrame(sample);
-    } catch {
-      // Speech recognition may still work without a separate volume meter.
-      if (mounted.current) setLevel(0);
-    }
-  }
 
   function say(text: string) {
     if (!mounted.current) return;
@@ -167,7 +110,7 @@ function BacyVoice() {
     const content = input.trim();
     if (!content || busy.current || !mounted.current) return;
     busy.current = true;
-    stopMeter();
+    setLevel(0);
     setHeard(content);
     setReply("");
     setError("");
@@ -195,78 +138,140 @@ function BacyVoice() {
     }
   }
 
-  function beginListening() {
-    if (busy.current || recognizer.current) return;
+  function beginListening(attempt = 0) {
+    if (busy.current || recognizer.current || !mounted.current) return;
+    if (recognitionRetry.current !== null) {
+      window.clearTimeout(recognitionRetry.current);
+      recognitionRetry.current = null;
+    }
     const Speech = (window as SpeechBrowser).SpeechRecognition ?? (window as SpeechBrowser).webkitSpeechRecognition;
     if (!Speech) {
-      setError("Voice recognition isn't supported here. Open BACY-10 in Chrome on Android, or type your request.");
       setSpeechAvailable(false);
+      setError("This browser cannot recognise speech. Open the direct BACY-10 link in Chrome on Android, or type instead.");
       setPhase("error");
       return;
     }
-    window.speechSynthesis?.cancel();
-    window.speechSynthesis?.resume(); // Unblock browser audio inside the user's tap gesture.
-    firstTap.current = true;
-    setError("");
-    setReply("");
-    setHeard("");
+    if (!window.isSecureContext) {
+      setError("Voice needs HTTPS. Open the direct BACY-10 preview link in Chrome.");
+      setPhase("error");
+      return;
+    }
+    if (attempt === 0) {
+      window.speechSynthesis?.cancel();
+      window.speechSynthesis?.resume();
+      manuallyStopped.current = false;
+      firstTap.current = true;
+      setHeard("");
+      setReply("");
+      setError("");
+    }
     setLevel(0);
     const instance = new Speech();
     recognizer.current = instance;
-    instance.lang = "en-GB";
+    // Listening language follows the English-language device; speaking remains
+    // a separate British text-to-speech setting.
+    instance.lang = /^en([-_]|$)/i.test(navigator.language) ? navigator.language : "en-GB";
     instance.continuous = false;
     instance.interimResults = true;
+    let bestText = "";
     let finalText = "";
     let failed = false;
-    let wasStopped = false;
-    instance.onstart = () => { if (mounted.current) setPhase("listening"); };
-    instance.onresult = (event) => {
-      const finalParts: string[] = [];
-      const provisionalParts: string[] = [];
-      for (let i = 0; i < event.results.length; i++) {
-        const segment = event.results[i];
-        if (!segment) continue;
-        const transcript = segment[0]?.transcript?.trim();
-        if (!transcript) continue;
-        if (segment.isFinal) finalParts.push(transcript);
-        else provisionalParts.push(transcript);
+    let retryNoSpeech = false;
+    let started = false;
+    instance.onstart = () => {
+      started = true;
+      if (recognitionWatchdog.current !== null) {
+        window.clearTimeout(recognitionWatchdog.current);
+        recognitionWatchdog.current = null;
       }
-      finalText = finalParts.join(" ");
-      if (mounted.current) setHeard([...finalParts, ...provisionalParts].join(" "));
+      if (mounted.current) setPhase("listening");
+    };
+    instance.onaudiostart = () => {
+      if (mounted.current) setPhase("listening");
+    };
+    instance.onspeechstart = () => {
+      if (mounted.current) setLevel(0.8);
+    };
+    instance.onspeechend = () => {
+      if (mounted.current) setLevel(0.1);
+    };
+    instance.onresult = (event) => {
+      const transcript = readSpeechResults(event.results);
+      finalText = transcript.final;
+      bestText = transcript.best;
+      if (mounted.current) {
+        setHeard(transcript.best);
+        // Visual response is driven by recognised speech, not synthetic volume.
+        if (transcript.best) setLevel(0.5);
+      }
     };
     instance.onerror = (event) => {
-      // Android Chrome often ends recognition after one utterance; only actual errors get shown.
-      if (event.error === "aborted") { wasStopped = true; return; }
+      if (event.error === "aborted" && manuallyStopped.current) return;
+      if (event.error === "no-speech" && attempt < 1 && !manuallyStopped.current) {
+        retryNoSpeech = true;
+        return;
+      }
       failed = true;
       if (!mounted.current) return;
       const message = event.error === "not-allowed" || event.error === "service-not-allowed"
-        ? "Microphone access was blocked. Allow microphone permission in your browser and tap again."
-        : event.error === "no-speech"
-          ? "I didn't catch anything. Tap and speak again."
+        ? "Microphone access was denied. Open BACY-10 directly in Chrome and allow the microphone."
+        : event.error === "audio-capture"
+          ? "No usable microphone was detected by the browser. Check microphone access on Android."
           : event.error === "network"
-            ? "The browser's speech recognition service could not connect. Try again when online."
-            : "Voice recognition stopped (" + event.error + "). Tap to try again or type instead.";
+            ? "The browser's speech-recognition service could not connect. Try Chrome with internet access."
+            : event.error === "no-speech"
+              ? "The microphone stopped without recognising any words. Speak as you tap, or choose Type instead."
+              : event.error === "aborted"
+                ? "Voice recognition was interrupted by the browser. Tap to try again."
+                : "Voice recognition error: " + event.error + ". Try Chrome or type instead.";
       setError(message);
       setPhase("error");
     };
     instance.onend = () => {
+      if (recognitionWatchdog.current !== null) {
+        window.clearTimeout(recognitionWatchdog.current);
+        recognitionWatchdog.current = null;
+      }
       if (recognizer.current === instance) recognizer.current = null;
-      stopMeter();
-      if (finalText.trim() && !failed) {
-        void send(finalText);
-      } else if (!failed && mounted.current) {
+      if (!mounted.current) return;
+      setLevel(0);
+      // Android can return a valid interim word but finish before marking isFinal.
+      const transcript = bestText.trim() || finalText.trim();
+      if (transcript && !failed) {
+        void send(transcript);
+      } else if (retryNoSpeech && !manuallyStopped.current) {
+        // Retry once only. Never silently spin the microphone indefinitely.
+        setPhase("listening");
+        recognitionRetry.current = window.setTimeout(() => {
+          recognitionRetry.current = null;
+          beginListening(attempt + 1);
+        }, 200);
+      } else if (!failed && !manuallyStopped.current) {
+        setError(started
+          ? "The microphone session ended but the browser returned no words. Try Chrome directly, or choose Type instead."
+          : "The browser closed the microphone before listening started. Open the direct link in Chrome.");
+        setPhase("error");
+      } else if (!failed) {
         setPhase("idle");
-        if (wasStopped && !finalText.trim()) setHeard("");
       }
     };
     try {
-      instance.start();
       setPhase("listening");
-      // Never make recognition depend on this second, optional audio meter.
-      void startMeter();
-    } catch {
+      instance.start();
+      recognitionWatchdog.current = window.setTimeout(() => {
+        recognitionWatchdog.current = null;
+        if (!mounted.current || recognizer.current !== instance || started) return;
+        failed = true;
+        setError("The browser did not start listening. Allow microphone permission and open the standalone preview in Chrome.");
+        setPhase("error");
+        recognizer.current = null;
+        instance.abort();
+      }, 14000);
+    } catch (caught) {
       recognizer.current = null;
-      setError("Could not start the microphone. Try Chrome and allow microphone access.");
+      setLevel(0);
+      const detail = caught instanceof Error ? caught.message : "unknown browser error";
+      setError("Could not start voice recognition: " + detail + ". Try Chrome and allow the microphone.");
       setPhase("error");
     }
   }
@@ -274,7 +279,14 @@ function BacyVoice() {
   function tap() {
     if (textMode) return;
     if (phase === "listening") {
-      recognizer.current?.stop();
+      if (recognizer.current) {
+        manuallyStopped.current = true;
+        recognizer.current.stop();
+      } else if (recognitionRetry.current !== null) {
+        window.clearTimeout(recognitionRetry.current);
+        recognitionRetry.current = null;
+        setPhase("idle");
+      }
       return;
     }
     if (phase === "thinking") return;
@@ -283,6 +295,14 @@ function BacyVoice() {
       setPhase("idle");
     }
     beginListening();
+  }
+
+  function testSpeaker() {
+    // An explicitly labelled local TTS test, not a fabricated AI answer.
+    const testLine = "Good day, sir. This is BACY-10. My speaker test is working.";
+    setError("");
+    setReply(testLine);
+    say(testLine);
   }
 
   function submitTyped(event: FormEvent<HTMLFormElement>) {
@@ -329,7 +349,10 @@ function BacyVoice() {
           <button type="button" onClick={() => setTextMode(false)}>Close</button>
         </form>}
         {(phase === "error" || !speechAvailable) && !textMode &&
-          <button className="voice-text-fallback" type="button" onClick={() => setTextMode(true)}>Type instead</button>}
+          <div className="voice-recovery">
+            <button className="voice-text-fallback" type="button" onClick={testSpeaker}>Test speaker</button>
+            <button className="voice-text-fallback" type="button" onClick={() => setTextMode(true)}>Type instead</button>
+          </div>}
       </section>
       <span className="voice-footer" aria-hidden="true">{voiceLabel && phase === "speaking" ? "BRITISH VOICE · " + voiceLabel : "BACY-10 / VOICE INTERFACE"}</span>
     </main>

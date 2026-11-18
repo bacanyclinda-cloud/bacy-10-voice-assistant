@@ -36,3 +36,7 @@ body{color:#eef2f6;font-family:Inter,ui-sans-serif,-apple-system,system-ui,"Sego
 }
 @media(max-height:610px){.voice-top{top:17px}.voice-floor{bottom:45px}.voice-footer{display:none}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
+
+/* Recovery links appear only after an actual browser/service failure. */
+.voice-recovery{display:flex;gap:22px;align-items:center;justify-content:center;margin-top:12px;flex-wrap:wrap;pointer-events:auto}
+.voice-recovery .voice-text-fallback{margin-top:0;min-height:42px}
