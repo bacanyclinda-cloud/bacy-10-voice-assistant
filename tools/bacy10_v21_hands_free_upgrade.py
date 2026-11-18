@@ -494,6 +494,69 @@ class _WelcomeScreenState extends State<WelcomeScreen> with WidgetsBindingObserv
     }
   }
 
+  Future<void> _handsFreePermissions() async {
+    try {
+      final current = await _native.invokeMapMethod<String, dynamic>(
+        'wakePermissionState',
+      );
+      if (!mounted) return;
+      final mic = current?['microphone'] == true;
+      final notices = current?['notifications'] == true;
+      final battery = current?['batteryUnrestricted'] == true;
+      final recognizer = current?['speechRecognizerAvailable'] == true;
+      final active = current?['wakeServiceRunning'] == true;
+      await showDialog<void>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          backgroundColor: const Color(0xFF111521),
+          title: const Text(
+            'Hands-free permissions',
+            style: TextStyle(color: Color(0xFFF4F5FC)),
+          ),
+          content: Text(
+            'Microphone: ' + (mic ? 'Allowed' : 'Needs permission') +
+            '\nNotifications: ' + (notices ? 'Allowed' : 'Needs permission') +
+            '\nBattery: ' + (battery ? 'Unrestricted' : 'Restricted') +
+            '\nSpeech recognition: ' + (recognizer ? 'Available' : 'Not available') +
+            '\nWake listening: ' + (active ? 'Running' : 'Not running') +
+            '\n\nFor background activation, allow these permissions once. '
+            'Android may still restrict wake detection with the screen locked.',
+            style: const TextStyle(
+              height: 1.5, color: Color(0xFFC7D4E6), fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(dialog);
+                try {
+                  await _native.invokeMethod<String>('requestWakePermissions');
+                } catch (_) {}
+              },
+              child: const Text('Allow permissions'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(dialog);
+                try {
+                  await _native.invokeMethod<String>('batterySettings');
+                } catch (_) {}
+              },
+              child: const Text('Battery settings'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialog),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      try {
+        await _native.invokeMethod<String>('appPermissions');
+      } catch (_) {}
+    }
+  }
+
   Future<void> _requestAssistantRole() async {
     try { await _native.invokeMethod<String>('assistantRole'); }
     catch (_) {
@@ -544,6 +607,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> with WidgetsBindingObserv
                 color: Color(0xFF9DB7A9))),
             ]),
             const Spacer(),
+            IconButton(
+              tooltip: 'Hands-free permissions',
+              onPressed: _handsFreePermissions,
+              icon: const Icon(Icons.tune_rounded, color: Color(0xFFD5DAF8)),
+            ),
             IconButton(
               onPressed: _requestAssistantRole,
               tooltip: 'Default Android assistant',
