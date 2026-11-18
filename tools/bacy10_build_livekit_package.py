@@ -182,6 +182,15 @@ def configure_flutter(root: Path) -> None:
     mobile = root / "mobile"
     manifest = mobile / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
     replace_once(manifest, 'android:label="Voice Assistant"', 'android:label="BACY-10"')
+    # Flutter adds INTERNET only to debug/profile manifests by default. Release
+    # builds need it in main or DNS lookups fail before token authentication.
+    manifest_text = manifest.read_text(encoding="utf-8")
+    internet_permission = '<uses-permission android:name="android.permission.INTERNET" />'
+    if internet_permission not in manifest_text:
+        manifest_text = manifest_text.replace(
+            "</manifest>", f"    {internet_permission}\n</manifest>", 1
+        )
+        manifest.write_text(manifest_text, encoding="utf-8")
 
     # Use a real server token endpoint, not a removed Sandbox feature or a demo.
     ctrl = mobile / "lib" / "controllers" / "app_ctrl.dart"
