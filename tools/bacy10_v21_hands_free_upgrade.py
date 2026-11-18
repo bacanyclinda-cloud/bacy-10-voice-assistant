@@ -299,9 +299,8 @@ import '../controllers/app_ctrl.dart' as app;
 import '../support/bacy10_token_client.dart';
 import '../widgets/bacy_live_orb.dart';
 
-/// The owner never has to paste a secret into the BACY-10 home screen.
-/// An existing encrypted device credential is used silently. No secret
-/// is embedded in this APK. A new device needs secure owner enrolment.
+/// Voice opens directly for already-authorised devices. After reinstall,
+/// permission recovery is accessible from a discrete dialog, not a home key form.
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
   @override
@@ -309,113 +308,250 @@ class WelcomeScreen extends StatefulWidget {
 }
 
 class _WelcomeScreenState extends State<WelcomeScreen> with WidgetsBindingObserver {
-  bool initializing = true;
-  bool isAuthorized = false;
-  bool connecting = false;
-  String? assistantStatus;
-  StreamSubscription<dynamic>? wakeSubscription;
-  static const native = MethodChannel('bacy10/assistant');
-  static const wakes = EventChannel('bacy10/wake_events');
+  bool loading = true;
+  bool authorised = false;
+  bool starting = false;
+  String? status;
+  StreamSubscription<dynamic>? wakeEvents;
+  static const _native = MethodChannel('bacy10/assistant');
+  static const _wakes = EventChannel('bacy10/wake_events');
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    wakeSubscription = wakes.receiveBroadcastStream().listen((event) async {
-      if (event == 'wake' && mounted) await _resumeVoice();
+    wakeEvents = _wakes.receiveBroadcastStream().listen((value) {
+      if (value == 'wake' && mounted) {
+        _openVoice();
+      }
     }, onError: (Object _) {});
-    _resumeVoice();
+    _check();
   }
 
-  Future<void> _resumeVoice() async {
-    if (connecting) return;
-    connecting = true;
+  Future<void> _check() async {
+    bool available = false;
+    try { available = await PairingTokenClient.hasPairingCode(); }
+    catch (_) { available = false; }
+    if (!mounted) return;
+    setState(() {
+      loading = false;
+      authorised = available;
+      status = available ? null : 'Restore your secure voice connection after reinstalling.';
+    });
+    if (available) await _openVoice();
+  }
+
+  Future<void> _openVoice() async {
+    if (!mounted || starting || !authorised) return;
+    final ctrl = context.read<app.AppCtrl>();
+    if (ctrl.isSessionStarting ||
+        ctrl.session.connectionState == sdk.ConnectionState.connected ||
+        ctrl.session.connectionState == sdk.ConnectionState.reconnecting) return;
+    setState(() {
+      starting = true;
+      status = 'Connecting to BACY-10…';
+    });
     try {
-      isAuthorized = await PairingTokenClient.hasPairingCode();
+      await _native.invokeMethod<String>('pauseWake');
       if (!mounted) return;
-      setState(() => initializing = false);
-      if (!isAuthorized) {
-        setState(() => assistantStatus =
-            'This installation needs secure device authorization. Your API key is never stored in the app.');
-        return;
-      }
-      await native.invokeMethod<String>('pauseWake');
-      if (!mounted) return;
-      context.read<app.AppCtrl>().connect();
+      ctrl.connect();
     } catch (_) {
-      if (mounted) setState(() => assistantStatus =
-        'Could not start voice. Check your connection and retry.');
+      if (mounted) setState(() => status = 'Connection could not start. Tap Retry.');
     } finally {
-      connecting = false;
-      if (mounted) setState(() => initializing = false);
+      if (mounted) setState(() => starting = false);
+    }
+  }
+
+  Future<void> _activate() async {
+    final input = TextEditingController();
+    String? error;
+    final saved = await showDialog<String>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (dialog, refresh) => AlertDialog(
+          backgroundColor: const Color(0xFF161B1A),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Restore voice connection',
+              style: TextStyle(color: Color(0xFFF2F4F1), fontWeight: FontWeight.w600)),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text(
+              'Your old app was removed, so Android erased its secure connection. '
+              'You only need to restore it once; future launches connect automatically.',
+              style: TextStyle(color: Color(0xFFC8D3D0), height: 1.5),
+            ),
+            const SizedBox(height: 17),
+            TextField(
+              controller: input,
+              obscureText: true,
+              enableSuggestions: false,
+              autocorrect: false,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: 'Private connection code',
+                labelStyle: TextStyle(color: Color(0xFFB9CAC4)),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () async {
+                final data = await Clipboard.getData('text/plain');
+                if (data?.text != null) {
+                  input.text = data!.text!.trim();
+                  refresh(() => error = null);
+                }
+              },
+              icon: const Icon(Icons.content_paste_rounded, size: 17),
+              label: const Text('Paste copied code'),
+            ),
+            if (error != null)
+              Text(error!, style: const TextStyle(color: Color(0xFFE7A3A3))),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialog),
+              child: const Text('Later')),
+            FilledButton(
+              onPressed: () {
+                final value = input.text.trim();
+                if (!RegExp(r'^[A-Za-z0-9_-]{20,160}$').hasMatch(value)) {
+                  refresh(() => error = 'Enter the secure code previously issued to you.');
+                  return;
+                }
+                Navigator.pop(dialog, value);
+              },
+              child: const Text('Connect voice'),
+            ),
+          ],
+        ),
+      ),
+    );
+    input.dispose();
+    if (saved == null || !mounted) return;
+    try {
+      await PairingTokenClient.saveCode(saved);
+      if (!mounted) return;
+      setState(() { authorised = true; status = null; });
+      await _openVoice();
+    } catch (_) {
+      if (mounted) setState(() => status = 'Could not store the connection securely.');
+    }
+  }
+
+  Future<void> _requestAssistantRole() async {
+    try { await _native.invokeMethod<String>('assistantRole'); }
+    catch (_) {
+      if (mounted) setState(() =>
+          status = 'Open Android Settings → Default apps → Digital assistant.');
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && mounted &&
-        !context.read<app.AppCtrl>().isSessionStarting &&
-        context.read<app.AppCtrl>().session.connectionState == sdk.ConnectionState.disconnected) {
-      _resumeVoice();
-    }
-  }
-
-  Future<void> _chooseDefaultAssistant() async {
-    try {
-      final result = await native.invokeMethod<String>('assistantRole');
-      if (mounted) setState(() => assistantStatus = result);
-    } catch (_) {
-      if (mounted) setState(() => assistantStatus =
-          'Open Android Settings → Default apps → Digital assistant.');
+    if (state == AppLifecycleState.resumed && authorised && mounted) {
+      _openVoice();
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    wakeSubscription?.cancel();
+    wakeEvents?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => Material(
-    color: const Color(0xFF0B0A0B),
+    color: const Color(0xFF080B0B),
     child: SafeArea(child: Consumer2<app.AppCtrl, sdk.Session>(
       builder: (ctx, controller, session, _) => Stack(children: [
-        Positioned(top: 14, right: 15,
-          child: IconButton(
-            tooltip: 'Choose as Android assistant',
-            onPressed: _chooseDefaultAssistant,
-            icon: const Icon(Icons.settings_voice_rounded, color: Color(0xFFE7CFB4)))),
+        Positioned(top: 19, left: 23, right: 20,
+          child: Row(children: [
+            Container(
+              width: 42, height: 42, alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(color: const Color(0xFF5E7E73)),
+                gradient: const LinearGradient(colors: [
+                  Color(0xFF1E3430), Color(0xFF0F1616)])),
+              child: const Text('B', style: TextStyle(
+                fontSize: 25, fontWeight: FontWeight.w800,
+                color: Color(0xFFE9F6EF))),
+            ),
+            const SizedBox(width: 11),
+            const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('BACY-10', style: TextStyle(
+                fontSize: 19, letterSpacing: .7,
+                fontWeight: FontWeight.w700, color: Color(0xFFF0F4F2))),
+              Text('VOICE INTELLIGENCE', style: TextStyle(
+                fontSize: 9, letterSpacing: 1.9,
+                color: Color(0xFF9DB7A9))),
+            ]),
+            const Spacer(),
+            IconButton(
+              onPressed: _requestAssistantRole,
+              tooltip: 'Default Android assistant',
+              icon: const Icon(Icons.settings_voice_rounded,
+                color: Color(0xFFDBEAE0))),
+          ])),
         Center(child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 510),
+          constraints: const BoxConstraints(maxWidth: 520),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Text('BACY—10', style: TextStyle(
-              fontSize: 28, letterSpacing: 5.5, fontWeight: FontWeight.w300,
-              color: Color(0xFFF4EBDF))),
-            const SizedBox(height: 4),
-            const Text('PERSONAL INTELLIGENCE', style: TextStyle(
-              fontSize: 10, letterSpacing: 1.8, color: Color(0xFFD3BCA6))),
-            const SizedBox(height: 24),
-            const SizedBox(width: 320, height: 320, child: BacyLiveOrb()),
             const SizedBox(height: 14),
-            Text(initializing ? 'Starting voice…' :
-                controller.connectionError ?? assistantStatus ??
-                (isAuthorized ? 'Connecting automatically…' : 'Device authorization required'),
+            const SizedBox(width: 322, height: 322, child: BacyLiveOrb()),
+            const SizedBox(height: 19),
+            const Text('BACY-10', style: TextStyle(
+              fontSize: 26, letterSpacing: 1.1,
+              fontWeight: FontWeight.w650,
+              color: Color(0xFFF1F8F3))),
+            const SizedBox(height: 6),
+            Text(
+              loading ? 'Starting…' :
+              !authorised ? 'CONNECTION NEEDS RESTORING' :
+              controller.isSessionStarting ? 'CONNECTING TO VOICE' : 'VOICE ASSISTANT',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: Color(0xFFD8C7B6))),
-            if (controller.connectionError != null && isAuthorized) ...[
-              const SizedBox(height: 15),
+              style: const TextStyle(
+                color: Color(0xFF8EB5A2),
+                letterSpacing: 2.1, fontSize: 10, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 15),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 26),
+              child: Text(controller.connectionError ?? status ??
+                'Your assistant starts automatically when connected.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFFD3DFD9), height: 1.5, fontSize: 13)),
+            ),
+            const SizedBox(height: 18),
+            if (!loading && !authorised)
+              FilledButton.icon(
+                onPressed: _activate,
+                icon: const Icon(Icons.lock_open_rounded),
+                label: const Text('RESTORE VOICE CONNECTION'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFDCECDF),
+                  foregroundColor: const Color(0xFF14281C),
+                  minimumSize: const Size(270, 51),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(26)),
+                ),
+              ),
+            if (authorised && !controller.isSessionStarting)
               OutlinedButton.icon(
-                onPressed: _resumeVoice, icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Retry connection')),
-            ],
+                onPressed: _openVoice,
+                icon: const Icon(Icons.mic_rounded),
+                label: const Text('RECONNECT VOICE'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFDAE9DC),
+                  minimumSize: const Size(245, 47),
+                ),
+              ),
           ]),
         )),
       ]),
     )),
   );
 }
+
 '''
 
 def one(path: Path, anchor: str, replacement: str):
