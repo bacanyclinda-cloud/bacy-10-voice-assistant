@@ -1,0 +1,37 @@
+{
+  "profile_version": 1,
+  "updated": "2026-11-18",
+  "visibility": "Private owner profile for BACY-10. No passwords, bank/card details, API keys, OTP, exact home address or secrets.",
+  "identity": {
+    "name": "BW Silinda",
+    "signature": "BW Silinda",
+    "country": "South Africa",
+    "home_area": "Bushbuckridge, Mpumalanga",
+    "phone": "063 724 6209",
+    "email": "bacanyclinda@gmail.com",
+    "relationship": "Girlfriend: Mari Shai",
+    "family": "Lives with two children; do not invent their names or ages"
+  },
+  "education": {
+    "university": "UNISA",
+    "current_context": "Distance-learning education student",
+    "module_context": "INS1502; previously GRT1501, IED1501, PSC1501, CAD1501, EST1501",
+    "matric": "2024 matric Bachelor pass",
+    "subjects": "Life Sciences, Physical Sciences, Agricultural Sciences, Religion Studies, Pure Mathematics, Sepedi HL, English FAL",
+    "communication": "Simple English and short explanations unless depth is requested; practical help with exams, teaching studies and study guides"
+  },
+  "skills": "Computer literate; experience at internet café and farming; actively learning and creating apps, AI systems and websites",
+  "projects": {
+    "BACY-10": "Android and PC personal voice assistant; LiveKit Cloud, Gemini live, Python agent, Flutter, GitHub Actions, Cloudflare token bridge. Keep current voice, support chat and Android phone actions. User wants premium realistic live energy-orb interface.",
+    "Loop Secure": "Android Device Owner phone financing and mobile device management, offline time limits, payments and QR/USB enrolment, for Loop devices. Rain SA partnership/proposal interest.",
+    "MBMF": "Kotlin Android client/admin financing and device-management apps; admin-verified EFT and customer registration, settlement, control features.",
+    "ZORA South Africa": "Large e-commerce catalogue, gadgets, clothes and electronics, supplier sourcing, Supabase.",
+    "ENZO Tools": "Windows phone-service tooling concept for lawful device-owner servicing.",
+    "Forex": "Experimental XM MT5 EURUSD trading bot and algorithms, demo tests; avoid claiming current operation."
+  },
+  "interests": "Technology, Android, AI, gadgets, smart devices, creating useful software for businesses, low-competition ventures, online retail, agriculture, construction quotations, South African Maskandi",
+  "career": "Find/apply to suitable entry-level retail, cashier, general worker, hardware, cleaning and tech roles near Bushbuckridge, and pitch business software to companies",
+  "development_preferences": "Hands-on coding with available GitHub and connected tools; ship real tested APKs and ZIPs, not mockups; preserve originals and do upgrades on separate branches; no unnecessary paid service",
+  "voice_preferences": "Keep existing natural British BACY-10 voice; warm, fast, conversational, direct; bro or sir in suitable context",
+  "privacy": "Never disclose phone, email, family or relationship to third parties without direct owner approval. Never guess facts not supplied. Respect Android consent and never claim an action was performed unless confirmed."
+}
