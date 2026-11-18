@@ -629,4 +629,4 @@ def apply(root: Path):
         .invokeMethod<String>('startWake'); } catch (_) {}
     session.restoreMessageHistory''')
     pub=mobile/"pubspec.yaml"
-    one(pub,"version: 2.0.0+24","version: 2.1.0+25")
+    one(pub,"version: 2.0.0+24","version: 2.2.0+26")
