@@ -25,11 +25,17 @@ import io.flutter.plugin.common.MethodChannel
 
 class BacyWakeListener(private val activity: Activity, engine: FlutterEngine) {
     private var sink: EventChannel.EventSink? = null
+    private var pendingWake = activity.intent?.getBooleanExtra("bacy10_wake", false) == true ||
+        activity.intent?.action == Intent.ACTION_ASSIST
     init {
         EventChannel(engine.dartExecutor.binaryMessenger, "bacy10/wake_events")
             .setStreamHandler(object : EventChannel.StreamHandler {
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
                     sink = events
+                    if (pendingWake) {
+                        pendingWake = false
+                        Handler(Looper.getMainLooper()).post { sink?.success("wake") }
+                    }
                 }
                 override fun onCancel(arguments: Any?) { sink = null }
             })
@@ -54,6 +60,49 @@ class BacyWakeListener(private val activity: Activity, engine: FlutterEngine) {
                             BacyWakeService.stop(activity)
                             result.success("Wake microphone paused during the live voice call.")
                         }
+                        "wakePermissionState" -> {
+                            val mic = activity.checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
+                                PackageManager.PERMISSION_GRANTED
+                            val notice = Build.VERSION.SDK_INT < 33 ||
+                                activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+                                    PackageManager.PERMISSION_GRANTED
+                            val power = activity.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                            result.success(mapOf(
+                                "microphone" to mic,
+                                "notifications" to notice,
+                                "batteryUnrestricted" to (Build.VERSION.SDK_INT < 23 ||
+                                    power.isIgnoringBatteryOptimizations(activity.packageName)),
+                                "speechRecognizerAvailable" to android.speech.SpeechRecognizer.isRecognitionAvailable(activity),
+                                "wakeServiceRunning" to BacyWakeService.running))
+                        }
+                        "requestWakePermissions" -> {
+                            val needs = mutableListOf<String>()
+                            if (activity.checkSelfPermission(Manifest.permission.RECORD_AUDIO) !=
+                                PackageManager.PERMISSION_GRANTED) needs.add(Manifest.permission.RECORD_AUDIO)
+                            if (Build.VERSION.SDK_INT >= 33 &&
+                                activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                                    PackageManager.PERMISSION_GRANTED)
+                                needs.add(Manifest.permission.POST_NOTIFICATIONS)
+                            if (needs.isNotEmpty()) {
+                                activity.requestPermissions(needs.toTypedArray(), 8011)
+                                result.success("Allow microphone and notification permissions.")
+                            } else {
+                                BacyWakeService.voiceCallActive = false
+                                BacyWakeService.start(activity)
+                                result.success("Hands-free wake service requested.")
+                            }
+                        }
+                        "batterySettings" -> {
+                            activity.startActivity(Intent(
+                                android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                            result.success("Allow BACY-10 unrestricted battery use in Android Settings.")
+                        }
+                        "appPermissions" -> {
+                            activity.startActivity(Intent(
+                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                android.net.Uri.parse("package:" + activity.packageName)))
+                            result.success("Android app permission settings opened.")
+                        }
                         "assistantRole" -> {
                             if (Build.VERSION.SDK_INT >= 29) {
                                 val roles = activity.getSystemService(Context.ROLE_SERVICE) as RoleManager
@@ -76,7 +125,10 @@ class BacyWakeListener(private val activity: Activity, engine: FlutterEngine) {
     }
 
     fun emitWake() {
-        Handler(Looper.getMainLooper()).post { sink?.success("wake") }
+        Handler(Looper.getMainLooper()).post {
+            if (sink != null) sink?.success("wake")
+            else pendingWake = true
+        }
     }
 
     fun stop() {
@@ -118,6 +170,7 @@ class BacyWakeService : Service() {
         private const val NOTICE = 7401
         const val ACTION_STOP = "com.livekit.example.VoiceAssistantFlutter.STOP_WAKE"
         @Volatile var voiceCallActive: Boolean = false
+        @Volatile var running: Boolean = false
 
         fun start(context: Context) {
             if (voiceCallActive) return
@@ -165,7 +218,12 @@ class BacyWakeService : Service() {
             .addAction(Notification.Action.Builder(
                 android.R.drawable.ic_menu_close_clear_cancel, "Stop listening", stopIntent).build())
             .build()
-        startForeground(NOTICE, notification)
+        try {
+            startForeground(NOTICE, notification)
+            running = true
+        } catch (_: Exception) {
+            stopSelf()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -191,7 +249,7 @@ class BacyWakeService : Service() {
         } else SpeechRecognizer.createSpeechRecognizer(this)
 
         speech?.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) {}
+            override fun onReadyForSpeech(params: Bundle?) { failureCount = 0 }
             override fun onBeginningOfSpeech() { busy = true }
             override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
@@ -206,14 +264,11 @@ class BacyWakeService : Service() {
             }
             override fun onError(error: Int) {
                 busy = false
-                if (error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ||
-                    error == SpeechRecognizer.ERROR_CLIENT) {
-                    failureCount += 1
-                } else failureCount = (failureCount + 1).coerceAtMost(20)
-                if (failureCount > 25) {
+                if (error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) {
                     stopSelf()
                     return
                 }
+                failureCount = (failureCount + 1).coerceAtMost(16)
                 restart()
             }
         })
@@ -274,12 +329,15 @@ class BacyWakeService : Service() {
         handler.postDelayed({
             restarting = false
             if (stopping || voiceCallActive) return@postDelayed
-            try { speech?.cancel() } catch (_: Exception) {}
-            listen()
+            // A fresh instance avoids continuous ERROR_RECOGNIZER_BUSY loops.
+            try { speech?.destroy() } catch (_: Exception) {}
+            speech = null
+            begin()
         }, delay)
     }
 
     override fun onDestroy() {
+        running = false
         stopping = true
         handler.removeCallbacksAndMessages(null)
         try { speech?.cancel(); speech?.destroy() } catch (_: Exception) {}
@@ -570,17 +628,22 @@ def apply(root: Path):
     one(main,"    override fun onDestroy() {",
         '''    override fun onResume() {
         super.onResume()
-        if (!BacyWakeService.voiceCallActive &&
-            checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
-                android.content.pm.PackageManager.PERMISSION_GRANTED) {
+        val prefs = getSharedPreferences("bacy10_permissions", MODE_PRIVATE)
+        val microphoneMissing =
+            checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) !=
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        val noticeMissing = android.os.Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        if ((microphoneMissing || noticeMissing) &&
+            !prefs.getBoolean("handsfree_permissions_requested", false)) {
+            prefs.edit().putBoolean("handsfree_permissions_requested", true).apply()
+            val permissions = mutableListOf<String>()
+            if (microphoneMissing) permissions.add(android.Manifest.permission.RECORD_AUDIO)
+            if (noticeMissing) permissions.add(android.Manifest.permission.POST_NOTIFICATIONS)
+            requestPermissions(permissions.toTypedArray(), 8011)
+        } else if (!microphoneMissing && !BacyWakeService.voiceCallActive) {
             BacyWakeService.start(this)
-        } else if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) !=
-            android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            val prefs = getSharedPreferences("bacy10_permissions", MODE_PRIVATE)
-            if (!prefs.getBoolean("mic_requested", false)) {
-                prefs.edit().putBoolean("mic_requested", true).apply()
-                requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 8011)
-            }
         }
     }
 
@@ -598,7 +661,8 @@ def apply(root: Path):
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (intent.getBooleanExtra("bacy10_wake", false)) {
+        if (intent.getBooleanExtra("bacy10_wake", false) ||
+            intent.action == Intent.ACTION_ASSIST) {
             bacyWake?.emitWake()
         }
     }
@@ -629,4 +693,4 @@ def apply(root: Path):
         .invokeMethod<String>('startWake'); } catch (_) {}
     session.restoreMessageHistory''')
     pub=mobile/"pubspec.yaml"
-    one(pub,"version: 2.0.0+24","version: 2.2.0+26")
+    one(pub,"version: 2.0.0+24","version: 2.3.0+27")
