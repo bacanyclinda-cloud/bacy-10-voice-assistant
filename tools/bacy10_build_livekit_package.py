@@ -109,6 +109,48 @@ def configure_agent(root: Path) -> None:
     frontend_env.write_text(old_env, encoding="utf-8")
 
 
+def configure_web(root: Path) -> None:
+    """Use system fonts in the redistributed source, no bundled font binaries."""
+    web = root / "agent" / "frontend"
+    layout = web / "app" / "layout.tsx"
+    text = layout.read_text(encoding="utf-8")
+    text = text.replace("import localFont from 'next/font/local';\n", "")
+    start = text.find("const commitMono = localFont({")
+    end = text.find("interface RootLayoutProps", start)
+    if start < 0 or end <= start:
+        raise RuntimeError("Could not replace upstream local-font setup")
+    text = text[:start] + text[end:]
+    text = text.replace("        commitMono.variable,\n", "")
+    layout.write_text(text, encoding="utf-8")
+    css = web / "styles" / "globals.css"
+    css.write_text(
+        ":root { --font-commit-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }\n"
+        + css.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    og = web / "app" / "opengraph-image.tsx"
+    og_text = og.read_text(encoding="utf-8")
+    start = og_text.find("  // Load fonts - use file system in dev, fetch in production")
+    end = og_text.find("  // bg", start)
+    if start >= 0 and end > start:
+        og_text = (
+            og_text[:start]
+            + "  // System-font fallback: no local font binaries are distributed.\n"
+            + "  const commitMonoData: ArrayBuffer | undefined = undefined;\n"
+            + "  const everettLightData: ArrayBuffer | undefined = undefined;\n\n"
+            + og_text[end:]
+        )
+    og_text = og_text.replace("fontFamily: 'CommitMono'", "fontFamily: 'monospace'")
+    og_text = og_text.replace("fontFamily: 'Everett'", "fontFamily: 'sans-serif'")
+    og_text = og_text.replace("SANDBOX", "BACY-10")
+    og.write_text(og_text, encoding="utf-8")
+    for item in list(root.rglob("*")):
+        if item.is_file() and item.suffix.lower() in {".ttf", ".otf", ".woff", ".woff2", ".eot"}:
+            item.unlink()
+    if (web / "fonts").is_dir():
+        (web / "fonts").rmdir()
+
+
 def configure_flutter(root: Path) -> None:
     mobile = root / "mobile"
     manifest = mobile / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
@@ -295,6 +337,7 @@ def main() -> None:
         copy_tree(upstream / "agent-starter-flutter", output / "mobile")
     configure_agent(output)
     configure_flutter(output)
+    configure_web(output)
     write_guide(output)
     agent_dir = output / "agent" / "src"
     if not compileall.compile_dir(str(agent_dir), quiet=1):
