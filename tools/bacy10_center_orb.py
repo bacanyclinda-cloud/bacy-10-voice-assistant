@@ -57,8 +57,8 @@ class _EnergyOrbPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
     final c = Offset(w / 2, h / 2);
-    final radius = math.min(w, h) * .395 * (1 + (active ? .012 : .005) * math.sin(t * 2));
     final t = phase * math.pi * 2;
+    final radius = math.min(w, h) * .395 * (1 + (active ? .012 : .005) * math.sin(t * 2));
     final blue = const Color(0xFF4BB8FF);
     final violet = const Color(0xFF9A65ED);
     final orange = const Color(0xFFDE8F75);
@@ -187,9 +187,9 @@ class _EnergyOrbPainter extends CustomPainter {
         final x = c.dx + radius * span * (math.sin(azimuth + warp) * .93);
         final y = c.dy + radius * (lat * .91 +
           math.sin(azimuth * 2.0 - t * .7 + lat * 3) * .13 * span);
-        final brightness = (0.45 + 0.55 * depth).clamp(0.0, 1.0);
+        final brightness = (0.45 + 0.55 * depth).clamp(0.0, 1.0).toDouble();
         final shimmer = .65 + .35 * math.sin(t * 2.4 + row * .17 + col * .11);
-        final alpha = (brightness * shimmer * (active ? .73 : .56)).clamp(0.0, 1.0);
+        final alpha = (brightness * shimmer * (active ? .73 : .56)).clamp(0.0, 1.0).toDouble();
         dots.color = (row < 0 ? blue : violet).withValues(alpha: alpha);
         canvas.drawCircle(Offset(x, y), (depth > 0 ? .8 : .46), dots);
       }
