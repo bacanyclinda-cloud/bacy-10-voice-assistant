@@ -1,56 +1,55 @@
-import { createOpenAI } from "@ai-sdk/openai";
-import { experimental_generateSpeech as generateSpeech } from "ai";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 /**
- * Generate actual MP3 audio for browsers where speechSynthesis is unavailable
- * (including Lovable's embedded preview on some Android devices).
- * All provider calls and API keys stay on the server; no mock speech is returned.
+ * Real OpenAI speech. OPENAI_API_KEY is read exclusively on the server.
+ * No keys, mocked audio, or placeholder success responses are sent to clients.
  */
 export const speakBacy = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z.object({ text: z.string().trim().min(1).max(1600) }).parse(input))
   .handler(async ({ data }) => {
-    const apiKey = process.env["LOVABLE_API_KEY"];
+    const apiKey = process.env["OPENAI_API_KEY"];
     if (!apiKey) {
-      return { error: "The Lovable AI voice service is not configured. Check your project connection." };
+      return { error: "The AI voice key is not configured yet. Add OPENAI_API_KEY as a secure server secret in your hosting settings." };
     }
-    const provider = createOpenAI({
-      baseURL: "https://ai.gateway.lovable.dev/v1",
-      apiKey,
-      headers: {
-        "Lovable-API-Key": apiKey,
-        "X-Lovable-AIG-SDK": "vercel-ai-sdk",
-      },
-    });
 
     try {
-      const result = await generateSpeech({
-        model: provider.speech("openai/gpt-4o-mini-tts"),
-        text: data.text,
-        voice: "onyx",
-        outputFormat: "mp3",
-        instructions:
-          "Speak as BACY-10: a composed British gentleman's personal assistant. " +
-          "Natural modern British English accent, warm, confident, measured, articulate and understated. " +
-          "Say sir naturally when present. Do not add words that are not in the supplied text.",
-        maxRetries: 1,
+      const response = await fetch("https://api.openai.com/v1/audio/speech", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini-tts",
+          input: data.text,
+          voice: "onyx",
+          response_format: "mp3",
+          instructions:
+            "Speak the supplied words exactly as BACY-10, a private British gentleman's assistant. " +
+            "Use natural modern British English pronunciation, poised and warm, with gentle authority. " +
+            "Deep masculine timbre, measured rhythm, restrained expression, not mechanical. " +
+            "Do not add or remove words.",
+        }),
+        signal: AbortSignal.timeout(25000),
       });
-      const base64 = result.audio.base64;
-      if (!base64) return { error: "The voice service returned no audio. Please try again." };
-      // Speech audio is transported as text, but generated and handled entirely
-      // on the server until a single audio response is delivered to the browser.
-      return { audio: base64, mediaType: result.audio.mediaType ?? "audio/mpeg" };
+
+      if (!response.ok) {
+        // Do not include upstream response bodies: they can expose sensitive details.
+        if (response.status === 401) return { error: "OpenAI rejected the voice key (401). Please check that the new server secret is valid." };
+        if (response.status === 403) return { error: "OpenAI voice access was denied (403). Check API project permissions." };
+        if (response.status === 429) return { error: "The OpenAI voice service is rate limited or has reached its usage allowance (429)." };
+        if (response.status === 400 || response.status === 404) return { error: "The OpenAI speech model or voice is unavailable for this project." };
+        return { error: "The OpenAI speech service returned an error (" + response.status + ")." };
+      }
+
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (!bytes.byteLength) return { error: "The speech service returned an empty audio file." };
+      if (bytes.byteLength > 3_500_000) return { error: "The audio reply was too large to play safely." };
+      return { audio: Buffer.from(bytes).toString("base64"), mediaType: "audio/mpeg" };
     } catch (error) {
-      const code = error && typeof error === "object" && "statusCode" in error
-        ? Number(error.statusCode)
-        : error && typeof error === "object" && "status" in error
-          ? Number(error.status) : NaN;
-      if (code === 401) return { error: "The Lovable voice service rejected the project key (401)." };
-      if (code === 402 || code === 403) return { error: "The Lovable AI voice service has insufficient credits or access. Speech audio could not be generated." };
-      if (code === 429) return { error: "Voice generation is temporarily rate limited. Try again shortly." };
-      console.error("BACY-10 speech generation failed", error);
-      return { error: "BACY-10 could not generate voice audio. Please try again or open the app in Chrome." };
+      console.error("BACY-10 voice service request failed", error instanceof Error ? error.name : "unknown");
+      return { error: "Could not reach OpenAI's voice service. Please check the network and try again." };
     }
   });
