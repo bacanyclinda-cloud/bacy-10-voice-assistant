@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
 import reactorIcon from "@/assets/bacy-10-icon.png";
+import { EnergyPresence, type PresenceMode } from "@/components/EnergyPresence";
 import { classifyAssistantCommand, getOfflineReply, type ProtocolPreset } from "@/lib/bacy.commands";
 import { askBacy } from "@/lib/bacy.functions";
 
@@ -358,7 +359,7 @@ function BacyAssistant() {
 
   function runPreset(preset: ProtocolPreset) {
     if (preset === "diagnostics") {
-      answer(`System diagnostics complete. Core output 98%. Connection ${online ? "online" : "offline"}${networkLatency === null ? "" : ` at ${networkLatency} milliseconds`}. Conversation archive contains ${Math.max(0, messages.length - 1)} recent entries. Your history stays on this device.`, true);
+      answer(`Local browser diagnostics complete. Network ${online ? "online" : "offline"}${networkLatency === null ? "" : ` at ${networkLatency} milliseconds`}. Conversation archive contains ${Math.max(0, messages.length - 1)} recent entries. Your history stays on this device.`, true);
     } else if (preset === "atmosphere") void scanWeather(null);
     else if (preset === "standby") {
       setStandby(true);
@@ -382,13 +383,14 @@ function BacyAssistant() {
   };
   const changePreference = (key: keyof VoicePreferences, value: number | boolean | string) => setPreferences((current) => ({ ...current, [key]: value }));
   const status = speaking ? "Speaking" : busy ? "Thinking" : weatherBusy ? "Scanning" : standby ? "Standby" : listening ? "Listening" : "At your service";
+  const presenceMode: PresenceMode = standby ? "standby" : listening ? "listening" : speaking ? "speaking" : busy || weatherBusy ? "thinking" : "idle";
   const code = speaking ? "VOICE OUT" : busy ? "PROCESSING" : weatherBusy ? "SCANNING" : standby ? "LOW POWER" : listening ? "VOICE IN" : "STANDBY READY";
   const orderedVoices = voices.filter((voice) => /^en[-_]gb/i.test(voice.lang)).concat(voices.filter((voice) => !/^en[-_]gb/i.test(voice.lang)));
 
   return <div className={`bacy-shell ${listening ? "mic-active" : ""} ${speaking ? "voice-active" : ""}`}>
     <header className="bacy-topbar">
       <div className="top-brand"><img className="brand-mark" src={reactorIcon} alt="" width={42} height={42} /><div><div className="brand-name">BACY<span>-10</span></div><div className="brand-caption">PERSONAL INTELLIGENCE SYSTEM</div></div></div>
-      <div className="top-status"><span className={`signal-dot ${online ? "is-online" : "is-offline"}`} /><span className="top-status-label">{online ? "LINK ESTABLISHED" : "OFFLINE"}</span><span className="top-divider" /><span className="top-clock">{clock || "--:--"}</span></div>
+      <div className="top-status"><span className={`signal-dot ${online ? "is-online" : "is-offline"}`} /><span className="top-status-label">{online ? "BROWSER ONLINE" : "OFFLINE"}</span><span className="top-divider" /><span className="top-clock">{clock || "--:--"}</span></div>
       <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
         <SheetTrigger asChild><Button variant="ghost" size="icon" className="settings-trigger" aria-label="Open voice settings" title="Voice settings"><Settings2 /></Button></SheetTrigger>
         <SheetContent className="settings-sheet"><SheetHeader className="settings-header"><span className="section-kicker">INTERFACE CALIBRATION</span><SheetTitle>Voice settings</SheetTitle><SheetDescription>Choose how BACY-10 sounds when replying aloud.</SheetDescription></SheetHeader>
@@ -409,13 +411,13 @@ function BacyAssistant() {
         <div className="assistant-heading"><div><div className="section-kicker">VOICE CONSOLE <span>//</span> SESSION 01</div><h1>Your personal assistant.</h1></div><div className="secure-note"><ShieldCheck size={15} /><span>HISTORY ON THIS DEVICE</span></div></div>
 
         <section className={`reactor-stage ${standby ? "reactor-standby" : ""}`} aria-label={`BACY-10 status: ${status}`}>
-          <div className="reactor-meta reactor-meta-left"><span className="micro-label">CORE OUTPUT</span><strong>98<span>%</span></strong></div><div className="reactor-meta reactor-meta-right"><span className="micro-label">MIC LEVEL</span><strong>{listening ? `${Math.round(micLevel * 100)}%` : speaking ? "VOICE" : "IDLE"}</strong></div>
-          <div className="reactor-grid" aria-hidden="true" /><div className="reactor-aura" aria-hidden="true" /><div className="reactor-rings" aria-hidden="true"><span /><span /><span /><span /></div>
-          <div className="reactor-core" aria-hidden="true"><img src={reactorIcon} alt="" width={1024} height={1024} /><div className="core-spectrum"><AudioLines size={31} strokeWidth={1.3} /></div></div><div className="reactor-orbit" aria-hidden="true"><i /><i /><i /></div>
+          <div className="reactor-meta reactor-meta-left"><span className="micro-label">CORE OUTPUT</span><strong>{ready ? "READY" : "BOOT"}</strong></div><div className="reactor-meta reactor-meta-right"><span className="micro-label">MIC LEVEL</span><strong>{listening ? `${Math.round(micLevel * 100)}%` : speaking ? "VOICE" : "IDLE"}</strong></div>
+          <div className="reactor-grid" aria-hidden="true" /><div className="reactor-aura" aria-hidden="true" />
+          <EnergyPresence mode={presenceMode} level={micLevel} onActivate={() => void listen()} disabled={busy || standby} />
           <div className="reactor-status"><span className={`signal-dot ${standby ? "is-amber" : "is-online"}`} /><span>{code}</span></div><div className="reactor-subtitle" aria-live="polite">{standby ? "Awaiting your instruction" : listening ? (interim || "Listening for your voice…") : speaking ? "Responding aloud" : busy ? "Composing a reply" : ""}</div>
         </section>
 
-        <div className="voice-controls"><div className="voice-control-copy"><span className="control-title">{standby ? "BACY-10 is in standby" : listening ? "Listening now" : "Speak with BACY-10"}</span><span className="control-subtitle">{standby ? "Enter ‘full power’ to resume." : "Tap the core or use the command line."}</span></div><Button className={`mic-button ${listening ? "mic-button-on" : ""}`} onClick={() => void listen()} disabled={busy || standby} aria-label={listening ? "Stop listening" : "Start voice input"}>{listening ? <MicOff /> : <Mic />}<span>{listening ? "STOP LISTENING" : "TALK TO BACY-10"}</span></Button><Button className="sound-button" variant="outline" size="icon" onClick={() => { if (speaking) { window.speechSynthesis.cancel(); setSpeaking(false); } else if (messages.at(-1)?.role === "assistant") speak(messages.at(-1)?.content ?? "At your service."); }} aria-label={speaking ? "Stop spoken reply" : "Repeat last reply"} title={speaking ? "Stop spoken reply" : "Repeat last reply"}>{speaking ? <VolumeX /> : <Volume2 />}</Button></div>
+        <div className="voice-controls"><div className="voice-control-copy"><span className="control-title">{standby ? "BACY-10 is in standby" : listening ? "Listening now" : "Speak with BACY-10"}</span><span className="control-subtitle">{standby ? "Type ‘full power’ to resume." : "Tap the animated core or use the command line."}</span></div><Button className={`mic-button ${listening ? "mic-button-on" : ""}`} onClick={() => void listen()} disabled={busy || standby} aria-label={listening ? "Stop listening" : "Start voice input"}>{listening ? <MicOff /> : <Mic />}<span>{listening ? "STOP LISTENING" : "TALK TO BACY-10"}</span></Button><Button className="sound-button" variant="outline" size="icon" onClick={() => { if (speaking) { window.speechSynthesis.cancel(); setSpeaking(false); } else if (messages.at(-1)?.role === "assistant") speak(messages.at(-1)?.content ?? "At your service."); }} aria-label={speaking ? "Stop spoken reply" : "Repeat last reply"} title={speaking ? "Stop spoken reply" : "Repeat last reply"}>{speaking ? <VolumeX /> : <Volume2 />}</Button></div>
         {notice && <div className="inline-notice" role="status"><Radio size={14} /><span>{notice}</span></div>}
 
         <section className="conversation-console" aria-label="Conversation">
@@ -424,12 +426,12 @@ function BacyAssistant() {
             {messages.slice(-5).map((message) => <article className={`message-row ${message.role === "user" ? "message-user" : "message-assistant"}`} key={message.id}><div className="message-timestamp">{message.time}</div><div className="message-body"><div className="message-sender">{message.role === "assistant" ? "BACY-10" : "YOU"}{message.localOnly && <span className="local-badge">LOCAL</span>}</div><p>{message.content}</p></div></article>)}
             {busy && <article className="message-row message-assistant"><div className="message-timestamp">NOW</div><div className="message-body"><div className="message-sender">BACY-10</div><p className="thinking-copy"><span /> Considering your request</p></div></article>}<div ref={endRef} />
           </div>
-          <form className="command-form" onSubmit={onSubmit}><span className="command-prompt" aria-hidden="true">&gt;_</span><input aria-label="Type a command" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Type a question or command…" maxLength={2000} disabled={busy || weatherBusy} /><Button type="submit" size="icon" disabled={!draft.trim() || busy || weatherBusy || standby} aria-label="Send command" title="Send command"><Send /></Button></form>
+          <form className="command-form" onSubmit={onSubmit}><span className="command-prompt" aria-hidden="true">&gt;_</span><input aria-label="Type a command" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Type a question or command…" maxLength={2000} disabled={busy || weatherBusy} /><Button type="submit" size="icon" disabled={!draft.trim() || busy || weatherBusy} aria-label="Send command" title="Send command"><Send /></Button></form>
         </section>
       </section>
 
       <aside className="systems-column" aria-label="System panels">
-        <section className="telemetry-section"><div className="section-kicker">SYSTEM STATUS <span>//</span> LIVE</div><div className="telemetry-list"><Telemetry icon={<Zap />} label="Power core" value="98%" detail="NOMINAL" percent={98} tone="cyan" /><Telemetry icon={<Signal />} label="Network link" value={networkLatency === null ? (online ? "ONLINE" : "OFFLINE") : `${networkLatency} ms`} detail={online ? "CONNECTED" : "NO SIGNAL"} percent={online ? 100 : 8} tone={online ? "cyan" : "amber"} /><Telemetry icon={<Cpu />} label="Memory matrix" value={`${Math.min(99, Math.round(((messages.length - 1) / 24) * 100))}%`} detail={`${Math.max(0, messages.length - 1)} / 24 ENTRIES`} percent={Math.min(99, Math.round(((messages.length - 1) / 24) * 100))} tone="blue" /></div><div className="security-line"><ShieldCheck size={15} /><span>Conversation history stays in this browser.</span></div></section>
+        <section className="telemetry-section"><div className="section-kicker">SYSTEM STATUS <span>//</span> LIVE</div><div className="telemetry-list"><Telemetry icon={<Zap />} label="Local console" value={ready ? "READY" : "BOOTING"} detail="BROWSER RUNTIME" percent={ready ? 100 : 5} tone="cyan" /><Telemetry icon={<Signal />} label="Network link" value={networkLatency === null ? (online ? "ONLINE" : "OFFLINE") : `${networkLatency} ms`} detail={online ? "CONNECTED" : "NO SIGNAL"} percent={online ? 100 : 8} tone={online ? "cyan" : "amber"} /><Telemetry icon={<Cpu />} label="Memory matrix" value={`${Math.min(99, Math.round(((messages.length - 1) / 24) * 100))}%`} detail={`${Math.max(0, messages.length - 1)} / 24 ENTRIES`} percent={Math.min(99, Math.round(((messages.length - 1) / 24) * 100))} tone="blue" /></div><div className="security-line"><ShieldCheck size={15} /><span>Conversation history stays in this browser.</span></div></section>
 
         <section className="utility-section weather-section"><div className="utility-heading"><div><div className="section-kicker">ATMOSPHERIC SCAN</div><h2>Weather now</h2></div><CloudSun size={19} /></div>
           <div className="radar-scene" aria-label="Atmosphere scan indicator"><div className="radar-ring radar-ring-outer" /><div className="radar-ring radar-ring-middle" /><div className="radar-ring radar-ring-inner" /><span className="radar-sweep" /><span className="radar-origin" /><span className="radar-point radar-point-one" /><span className="radar-point radar-point-two" /><span className="radar-point radar-point-three" /><span className="radar-readout">{weatherBusy ? "SCANNING" : weather ? "LIVE DATA" : "AWAITING SCAN"}</span></div>
@@ -448,7 +450,7 @@ function BacyAssistant() {
       <section className="protocol-section" aria-label="Quick protocols"><div className="protocol-label"><span className="section-kicker">QUICK PROTOCOLS</span><span>READY WHEN YOU ARE</span></div><div className="protocol-grid"><Protocol label="System diagnostics" code="01 / SCAN" icon={<Activity />} onClick={() => runPreset("diagnostics")} /><Protocol label="Atmospheric scan" code="02 / WEATHER" icon={<CloudSun />} onClick={() => void scanWeather(null)} disabled={weatherBusy} /><Protocol label={standby ? "Full power" : "Standby mode"} code={standby ? "04 / RESUME" : "03 / SUSPEND"} icon={standby ? <Zap /> : <ArrowDownRight />} onClick={() => runPreset(standby ? "full-power" : "standby")} /><Protocol label={ambientPlaying ? "Stop ambient" : "Ambient audio"} code="05 / MEDIA" icon={ambientPlaying ? <VolumeX /> : <AudioLines />} onClick={toggleAmbient} /></div></section>
     </main>
 
-    <footer className="bacy-footer"><div><span className="footer-led" /> BACY-10 <span className="footer-muted">PERSONAL ASSISTANT</span></div><div>BRITISH ENGLISH <span className="footer-muted">·</span> {online ? "CONNECTION READY" : "OFFLINE MODE"}</div><span className="footer-time">{clock || "--:--"} LOCAL</span></footer>
+    <footer className="bacy-footer"><div><span className="footer-led" /> BACY-10 <span className="footer-muted">PERSONAL ASSISTANT</span></div><div>BRITISH ENGLISH <span className="footer-muted">·</span> {online ? "BROWSER ONLINE" : "OFFLINE MODE"}</div><span className="footer-time">{clock || "--:--"} LOCAL</span></footer>
   </div>;
 }
 
