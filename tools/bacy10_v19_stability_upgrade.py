@@ -42,7 +42,7 @@ REPLACEMENT_ORB = r"""
 class AgentTrackView extends StatelessWidget {
   const AgentTrackView({super.key});
   @override
-  Widget build(BuildContext context) => const Center(
+  Widget build(BuildContext context) => Center(
     child: Padding(
       padding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: RepaintBoundary(
