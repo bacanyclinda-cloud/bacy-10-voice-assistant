@@ -95,6 +95,28 @@ def configure_agent(root: Path) -> None:
             encoding="utf-8",
         )
 
+    # Cloud containers must include actual Playwright Chromium and system libraries.
+    dockerfile = root / "agent" / "Dockerfile"
+    docker_text = dockerfile.read_text(encoding="utf-8")
+    docker_text = docker_text.replace(
+        "ARG PYTHON_VERSION=3.14", "ARG PYTHON_VERSION=3.12"
+    )
+    docker_text = docker_text.replace(
+        "ENV TORCH_HOME=/app/.cache/torch",
+        "ENV TORCH_HOME=/app/.cache/torch\nENV PLAYWRIGHT_BROWSERS_PATH=/app/.cache/ms-playwright",
+    )
+    docker_text = docker_text.replace(
+        "RUN uv sync --locked",
+        "RUN uv sync --locked\nRUN uv run playwright install chromium",
+    )
+    docker_text = docker_text.replace(
+        "WORKDIR /app\n\n# Switch to the non-privileged user",
+        "WORKDIR /app\n\n# Browser tools need system libraries as well as Chromium binary.\n"
+        "RUN uv run playwright install-deps chromium\n\n"
+        "# Switch to the non-privileged user",
+    )
+    dockerfile.write_text(docker_text, encoding="utf-8")
+
     env = root / "agent" / ".env.example"
     env.write_text(
         "# Real credentials are required. Copy this file to .env.local.\n"
@@ -425,7 +447,7 @@ Video: https://youtu.be/Fhm8goKN6rM
 - Upstream LICENSE and README files are retained. Respect upstream usage rights.
 
 BACY-10 changes: updated name and creator; LiveKit agent name set to bacy-10;
-Android label BACY-10; Flutter requires your own LiveKit sandbox instead of
+Android label BACY-10; Flutter uses a real HTTPS token endpoint instead of
 silently using LiveKit's demonstration bot; developer defaults use headless Chromium.
 
 ## You need REAL credentials
@@ -464,9 +486,10 @@ Do not expose the development token endpoint to the public Internet.
 
 ## Compile your own Android APK
 Install Flutter SDK 3.38.2 (recommended for this Gradle 8.14 project), Android SDK and Java 17.\nDo not use Flutter 3.50 with this template unless you also upgrade Android Gradle/AGP compatibility.
-In LiveKit Cloud enable a SANDBOX TOKEN SERVER for development.
-Edit mobile/assets/.env and set LIVEKIT_SANDBOX_ID to your own sandbox ID.
-The Flutter app will NOT connect to the tutorial's public demo by default.
+BACY-10 Android now uses a Cloudflare token endpoint instead of the retired sandbox.
+Configure the token service Worker secrets in your Cloudflare Dashboard,
+then enter the BACY-10 pairing code once in the Android app.
+No private API credentials are stored in the Android source or APK.
 
   cd mobile
   flutter doctor
@@ -484,7 +507,7 @@ API SECRET or Google API key inside Flutter.
 
 ## Verify this is REAL and NOT MOCK DATA
 1. Run Python agent using your own LiveKit URL + Google key.
-2. Connect the mobile app using your project sandbox ID.
+2. Enter your pairing code once in the mobile app and connect through the HTTPS token endpoint.
 3. Speak "BACY-10, are you there?" and wait for a real Gemini response.
 4. Interrupt it mid-sentence and check it listens again.
 5. Ask it to open a harmless web page: observe Playwright on the agent host.
