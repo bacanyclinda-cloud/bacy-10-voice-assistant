@@ -231,8 +231,23 @@ def configure_flutter(root: Path) -> None:
         notifyListeners();
       }""",
         """      if (session.connectionState == sdk.ConnectionState.connected) {
-        appScreenState = AppScreenState.agent;
-        connectionError = null;
+        // A connected LiveKit ROOM is not evidence that our voice agent exists.
+        // Wait briefly for the real remote agent instead of showing a silent call.
+        var seconds = 0;
+        while (room.remoteParticipants.isEmpty &&
+            session.connectionState == sdk.ConnectionState.connected &&
+            seconds < 15) {
+          await Future<void>.delayed(const Duration(seconds: 1));
+          seconds += 1;
+        }
+        if (room.remoteParticipants.isEmpty) {
+          connectionError = 'LiveKit room connected, but BACY-10 has not joined. Deploy the bacy-10 Python agent to LiveKit Cloud first.';
+          await session.end();
+          appScreenState = AppScreenState.welcome;
+        } else {
+          appScreenState = AppScreenState.agent;
+          connectionError = null;
+        }
         notifyListeners();
       } else {
         connectionError = 'No LiveKit session was established. Check that the agent is deployed.';
