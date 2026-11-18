@@ -1,0 +1,158 @@
+name: BACY-10 LiveKit Complete Source
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/bacy10-livekit-complete-source-20261118
+    paths:
+      - .github/workflows/bacy10-livekit-complete-source.yml
+      - tools/bacy10_build_livekit_package.py
+      - BACY10-LIVEKIT-DOWNLOAD.md
+
+permissions:
+  contents: read
+
+jobs:
+  source-bundle:
+    name: Package full real LiveKit source
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout BACY-10 repository
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download pinned full tutorial and apply BACY-10 setup
+        run: python tools/bacy10_build_livekit_package.py --output build/BACY10-LIVEKIT-FULL-SOURCE
+
+      - name: Validate essential source and exclude secrets
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          root=Path("build/BACY10-LIVEKIT-FULL-SOURCE")
+          assert (root/"agent/src/agent.py").is_file()
+          assert (root/"agent/src/browser.py").is_file()
+          assert (root/"agent/src/tools.py").is_file()
+          assert (root/"agent/frontend/package.json").is_file()
+          assert (root/"agent/uv.lock").is_file()
+          assert (root/"mobile/lib/main.dart").is_file()
+          assert (root/"mobile/android/app/build.gradle").is_file()
+          assert (root/"mobile/assets/.env").is_file()
+          assert not list(root.rglob(".env.local")), "Private environment file must never be bundled"
+          assert not [p for p in root.rglob("*") if p.suffix.lower() in {".otf", ".ttf", ".woff", ".woff2", ".eot"}], "Font binaries are excluded from the distribution"
+          agent=(root/"agent/src/agent.py").read_text()
+          assert 'agent_name="bacy-10"' in agent
+          assert "gemini-3.1-flash-live-preview" in agent
+          assert "BrowserTools" in agent
+          mobile=(root/"mobile/lib/controllers/app_ctrl.dart").read_text()
+          assert "connectionError" in mobile
+          assert "bacy-10-not-configured" in mobile
+          print("SOURCE VALIDATION PASSED: real agent, browser tools, web app, Flutter mobile and safe templates")
+          PY
+          find build/BACY10-LIVEKIT-FULL-SOURCE -type d -name __pycache__ -prune -exec rm -rf '{}' +
+
+      - name: Upload complete source as download ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: BACY10-LIVEKIT-FULL-SOURCE
+          path: build/BACY10-LIVEKIT-FULL-SOURCE/
+          retention-days: 30
+          if-no-files-found: error
+          include-hidden-files: true
+
+  python-agent:
+    name: Check real Python agent dependencies and tests
+    needs: source-bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: BACY10-LIVEKIT-FULL-SOURCE
+          path: ./source
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+      - name: Resolve Python/LiveKit agent dependencies
+        working-directory: source/agent
+        run: uv sync --python 3.12 --locked
+      - name: Compile Python agent
+        working-directory: source/agent
+        run: uv run python -m compileall -q src
+      - name: Install real Playwright Chromium for browser tests
+        working-directory: source/agent
+        run: uv run playwright install --with-deps chromium
+      - name: Run offline agent and real browser tests
+        working-directory: source/agent
+        run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_browser.py
+      # The upstream tests/test_agent.py evaluates live LLM responses using a
+      # real LiveKit inference API key. Run it ONLY in your configured environment;
+      # no fabricated keys are supplied to CI.
+
+  flutter-android:
+    name: Check Flutter Android source and compile debug APK
+    needs: source-bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: BACY10-LIVEKIT-FULL-SOURCE
+          path: ./source
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.38.2"
+          cache: true
+      - name: Fetch Flutter dependencies
+        working-directory: source/mobile
+        run: flutter pub get
+      - name: Analyze Flutter Dart
+        working-directory: source/mobile
+        run: flutter analyze --no-fatal-infos
+      - name: Compile real Android debug APK
+        working-directory: source/mobile
+        run: flutter build apk --debug
+      - name: Upload optional compiled Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BACY10-LIVEKIT-ANDROID-DEBUG
+          path: source/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14
+          if-no-files-found: error
+
+  nextjs-web:
+    name: Build complete Next.js LiveKit web frontend
+    needs: source-bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: BACY10-LIVEKIT-FULL-SOURCE
+          path: ./source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+      - name: Install real frontend dependencies
+        working-directory: source/agent/frontend
+        run: pnpm install --frozen-lockfile
+      - name: Build LiveKit Next.js web frontend
+        working-directory: source/agent/frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: pnpm build
