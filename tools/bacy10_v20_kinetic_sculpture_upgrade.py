@@ -6,6 +6,9 @@ champagne/ivory studio reflections, and reacts to real LiveKit voice states.
 """
 from pathlib import Path
 
+"""Only the central BACY-10 visual: animated blue-violet-amber plasma orb."""
+from pathlib import Path
+
 SCULPTURE = r'''
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -13,22 +16,26 @@ import 'package:livekit_client/livekit_client.dart' as sdk;
 import 'package:provider/provider.dart';
 import '../controllers/app_ctrl.dart';
 
-/// Three-dimensional kinetic mineral core.
-/// A projected toroidal mesh with real face normals, studio lighting,
-/// two rotating axes and a glass eye. No old light waves or 2D ribbons.
+/// BACY-10's living plasma sphere. Blue, violet and amber light folds
+/// through a dark translucent globe, matching the owner's energy reference.
+/// Only this centre object changes; every surrounding control is preserved.
 class BacyLiveOrb extends StatefulWidget {
   const BacyLiveOrb({super.key});
+
   @override
   State<BacyLiveOrb> createState() => _BacyLiveOrbState();
 }
 
-class _BacyLiveOrbState extends State<BacyLiveOrb> with SingleTickerProviderStateMixin {
-  late final AnimationController motion = AnimationController(
-    vsync: this, duration: const Duration(milliseconds: 13500))..repeat();
+class _BacyLiveOrbState extends State<BacyLiveOrb>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _motion = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 11500),
+  )..repeat();
 
   @override
   void dispose() {
-    motion.dispose();
+    _motion.dispose();
     super.dispose();
   }
 
@@ -37,180 +44,389 @@ class _BacyLiveOrbState extends State<BacyLiveOrb> with SingleTickerProviderStat
     final room = context.read<AppCtrl>().room;
     final session = context.read<sdk.Session>();
     return AnimatedBuilder(
-      animation: Listenable.merge([motion, room, session.agent]),
+      animation: Listenable.merge([_motion, room, session.agent]),
       builder: (context, _) {
-        final speaking = room.localParticipant?.isSpeaking ?? false;
+        final userSpeaking = room.localParticipant?.isSpeaking ?? false;
         final agentState = session.agent.agentState;
-        final replying = agentState == sdk.AgentState.speaking;
+        final agentSpeaking = agentState == sdk.AgentState.speaking;
         final thinking = agentState == sdk.AgentState.thinking;
-        final connected = session.connectionState == sdk.ConnectionState.connected;
-        final level = (room.localParticipant?.audioLevel ?? 0.0).clamp(0.0, 1.0);
-        final strength = speaking ? (0.62 + level * .9).clamp(0.0, 1.4).toDouble()
-            : replying ? .82 : thinking ? .55 : connected ? .34 : .15;
-        final state = speaking ? 'YOU ARE SPEAKING' :
-            replying ? 'BACY-10 IS SPEAKING' :
-            thinking ? 'PROCESSING' : connected ? 'LISTENING' : 'STANDBY';
-
-        return RepaintBoundary(child: Stack(fit: StackFit.expand, children: [
-          CustomPaint(painter: _KineticCorePainter(motion.value, strength)),
-          Positioned(
-            bottom: 0, left: 0, right: 0,
-            child: Text(state, textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFFAFCBC0), fontSize: 10,
-                letterSpacing: 2.4, fontWeight: FontWeight.w600))),
-        ]));
+        final connected =
+            session.connectionState == sdk.ConnectionState.connected;
+        final level = (room.localParticipant?.audioLevel ?? 0.0)
+            .clamp(0.0, 1.0)
+            .toDouble();
+        final energy = userSpeaking
+            ? (0.58 + level * 1.25).clamp(0.0, 1.75).toDouble()
+            : agentSpeaking
+                ? 0.92
+                : thinking
+                    ? 0.47
+                    : connected
+                        ? 0.33
+                        : 0.18;
+        final status = userSpeaking
+            ? 'YOU ARE SPEAKING'
+            : agentSpeaking
+                ? 'BACY-10 IS SPEAKING'
+                : thinking
+                    ? 'PROCESSING'
+                    : connected
+                        ? 'LISTENING'
+                        : 'STANDBY';
+        return RepaintBoundary(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              CustomPaint(
+                painter: _EnergySpherePainter(
+                  phase: _motion.value,
+                  energy: energy,
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Text(
+                  status,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFFD5D7F5),
+                    letterSpacing: 2.4,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
       },
     );
   }
 }
 
-class _Vec {
-  const _Vec(this.x, this.y, this.z);
-  final double x, y, z;
+class _EnergySpherePainter extends CustomPainter {
+  const _EnergySpherePainter({required this.phase, required this.energy});
 
-  _Vec operator -(_Vec b) => _Vec(x-b.x, y-b.y, z-b.z);
-  _Vec cross(_Vec b) => _Vec(y*b.z-z*b.y, z*b.x-x*b.z, x*b.y-y*b.x);
-  double dot(_Vec b) => x*b.x+y*b.y+z*b.z;
-  double get length => math.sqrt(x*x+y*y+z*z);
+  final double phase;
+  final double energy;
 
-  _Vec rotated(double yaw, double pitch, double roll) {
-    final cy=math.cos(yaw), sy=math.sin(yaw);
-    final cx=math.cos(pitch), sx=math.sin(pitch);
-    final cz=math.cos(roll), sz=math.sin(roll);
-    final x0=x*cy+z*sy, z0=z*cy-x*sy;
-    final y1=y*cx-z0*sx, z1=y*sx+z0*cx;
-    return _Vec(x0*cz-y1*sz, x0*sz+y1*cz, z1);
-  }
-}
+  static const Color electric = Color(0xFF13BBFF);
+  static const Color blue = Color(0xFF2B56FF);
+  static const Color violet = Color(0xFF9955FF);
+  static const Color hotPink = Color(0xFFEF65FA);
+  static const Color amber = Color(0xFFFF9C45);
+  static const Color white = Color(0xFFE7F5FF);
 
-class _Face {
-  const _Face(this.path, this.z, this.shade, this.ring);
-  final Path path;
-  final double z, shade;
-  final int ring;
-}
-
-class _KineticCorePainter extends CustomPainter {
-  _KineticCorePainter(this.phase, this.voice);
-  final double phase, voice;
-
-  static const dark = Color(0xFF0A1212);
-  static const enamel = Color(0xFFE4F3EC);
-  static const emerald = Color(0xFF5DAB8F);
-  static const charcoal = Color(0xFF21312D);
-  static const highlight = Color(0xFFF8FFF9);
-
-  Offset project(_Vec p, Offset center, double radius) {
-    final perspective = 3.7 / (3.7 - p.z * .6);
-    return Offset(center.dx + p.x * radius * perspective,
-      center.dy + p.y * radius * perspective);
-  }
+  Paint glow(Color color, double opacity, double stroke, double blur) =>
+      Paint()
+        ..color = color.withValues(alpha: opacity.clamp(0.0, 1.0).toDouble())
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..strokeWidth = stroke
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur);
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
     final t = phase * math.pi * 2;
-    final c = Offset(size.width * .5, size.height * .48);
-    final r = math.min(size.width, size.height) * .35;
-    final pulsation = 1 + .024 * voice + .008 * math.sin(t * 2.7);
+    final c = Offset(size.width * .5, size.height * .465);
+    final r = math.min(size.width, size.height) * .344;
+    final pulse = 1 + energy * .025 + .012 * math.sin(t * 2.3);
+    final radius = r * pulse;
+    final globe = Rect.fromCircle(center: c, radius: radius);
 
-    // Soft off-camera studio reflection and deep graphite space.
-    canvas.drawCircle(c, r * 1.50, Paint()
-      ..shader = RadialGradient(colors: [
-        emerald.withValues(alpha: .17 + .06 * voice),
-        charcoal.withValues(alpha: .16),
-        Colors.transparent],
-        stops: const [0, .50, 1]).createShader(
-          Rect.fromCircle(center: c, radius: r * 1.50)));
+    // Cinematic colored atmosphere around the otherwise black space.
+    canvas.drawCircle(
+      c,
+      radius * 1.57,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            blue.withValues(alpha: .18 + .08 * energy),
+            violet.withValues(alpha: .10),
+            Colors.transparent,
+          ],
+          stops: const [0, .47, 1],
+        ).createShader(Rect.fromCircle(center: c, radius: radius * 1.57)),
+    );
+    final amberCentre = Offset(c.dx + radius * .49, c.dy + radius * .32);
+    canvas.drawCircle(
+      amberCentre,
+      radius * .85,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            amber.withValues(alpha: .14 + .08 * energy),
+            hotPink.withValues(alpha: .04),
+            Colors.transparent,
+          ],
+        ).createShader(
+          Rect.fromCircle(center: amberCentre, radius: radius * .85),
+        ),
+    );
 
-    // Volumetric core: smoked mineral glass with distinct surface refraction.
-    final sphere = r * .36 * pulsation;
-    canvas.drawCircle(c, sphere * 1.3, Paint()
-      ..color = emerald.withValues(alpha: .28 + voice * .1)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 22));
-    canvas.drawCircle(c, sphere, Paint()
-      ..shader = RadialGradient(
-        center: const Alignment(-.40, -.44), radius: 1.05,
-        colors: [highlight, const Color(0xFFC5E4D5),
-          const Color(0xFF608D7A), const Color(0xFF203B32),
-          const Color(0xFF0B1513)],
-        stops: const [0, .19, .45, .76, 1],
-      ).createShader(Rect.fromCircle(center: c, radius: sphere)));
-
-    // Torus surfaces are built as projected 3D quads.
-    // Draw far polygons before near polygons to expose physical depth.
-    final faces = <_Face>[];
-    const majorSegments=76;
-    const tubeSegments=14;
-    final light = const _Vec(-.35, -.58, .74);
-    for (var ring=0; ring<2; ring++) {
-      final yaw=t * (ring==0 ? .35 : -.28) + ring*1.15;
-      final pitch=(ring==0 ? .35 : 1.05) + math.sin(t*.27+ring)*.18;
-      final roll=(ring==0 ? .28 : -1.12) + t*(ring==0 ? .12 : -.09);
-      final tube=ring==0 ? .135 : .102;
-      final major=ring==0 ? .82 : .62;
-      _Vec surface(int uStep, int vStep) {
-        final u=uStep * math.pi * 2 / majorSegments;
-        final v=vStep * math.pi * 2 / tubeSegments;
-        final width=major+tube*math.cos(v);
-        return _Vec(width*math.cos(u),
-          width*math.sin(u), tube*math.sin(v))
-          .rotated(yaw,pitch,roll);
-      }
-      for(var u=0;u<majorSegments;u++) {
-        for(var v=0;v<tubeSegments;v++) {
-          final a=surface(u,v), b=surface(u+1,v),
-              d=surface(u,v+1), e=surface(u+1,v+1);
-          final normal=(b-a).cross(d-a);
-          final length=normal.length;
-          final facing=length < 0.000001 ? 0.0 :
-              normal.dot(light)/length;
-          final lum=(.22+.70*math.max(0.0,facing)+
-              .10*math.max(0.0,-facing)).clamp(.0,1.0).toDouble();
-          final path=Path();
-          final pa=project(a,c,r*pulsation), pb=project(b,c,r*pulsation),
-            pe=project(e,c,r*pulsation), pd=project(d,c,r*pulsation);
-          path.moveTo(pa.dx,pa.dy);
-          path.lineTo(pb.dx,pb.dy);
-          path.lineTo(pe.dx,pe.dy);
-          path.lineTo(pd.dx,pd.dy);
-          path.close();
-          faces.add(_Face(path,(a.z+b.z+d.z+e.z)*.25,lum,ring));
+    // Behind the glass: long, silky plasma trails break outside the sphere.
+    for (var strand = 0; strand < 12; strand++) {
+      final path = Path();
+      final position = (strand - 5.5) / 5.5;
+      for (var step = 0; step <= 170; step++) {
+        final u = step / 170.0;
+        final x = (u * 2 - 1) * radius * 1.43;
+        final envelope = math.exp(-math.pow(x / (radius * 1.40), 2));
+        final y = position * radius * .69 +
+            math.sin(x / radius * (3.0 + strand * .13) +
+                    t * (.58 + strand * .017) + strand * .55) *
+                radius * (.12 + .07 * energy) * envelope +
+            math.cos(x / radius * 4.8 - t * .28 + strand) *
+                radius * .039;
+        final point = Offset(c.dx + x, c.dy + y);
+        if (step == 0) {
+          path.moveTo(point.dx, point.dy);
+        } else {
+          path.lineTo(point.dx, point.dy);
         }
       }
-    }
-    faces.sort((a,b)=>a.z.compareTo(b.z));
-    for(final f in faces) {
-      final base=f.ring==0 ? emerald : enamel;
-      final color=Color.lerp(dark,base,f.shade) ?? base;
-      canvas.drawPath(f.path, Paint()..color=color);
+      final color = strand % 4 == 0
+          ? amber
+          : strand % 3 == 0
+              ? hotPink
+              : strand.isEven
+                  ? electric
+                  : violet;
+      canvas.drawPath(path, glow(color, .12 + .05 * energy, 16, 18));
+      canvas.drawPath(path, glow(color, .20 + .15 * energy, 1.05, 1.6));
     }
 
-    // The core is in front of some parts of the gyroscope, giving eye-depth.
-    final lens=r*.30;
-    canvas.drawCircle(c,lens,Paint()..shader=RadialGradient(
-      center: const Alignment(-.42,-.38), radius: 1.04,
-      colors:[const Color(0xFFEDFFF3), const Color(0xFF86BBA3),
-        const Color(0xFF294B3C), const Color(0xFF0C1815)],
-      stops:const [0,.30,.68,1])
-        .createShader(Rect.fromCircle(center:c,radius:lens)));
-
-    // Tiny travelling reflection, like a moving product studio softbox.
-    final glint=Offset(c.dx-lens*.34+math.cos(t*.35)*lens*.06,
-      c.dy-lens*.38);
-    canvas.drawOval(Rect.fromCenter(
-      center:glint,width:lens*.35,height:lens*.18),
+    // The deep transparent body does NOT look like a flat solid colored disk.
+    canvas.drawCircle(
+      c,
+      radius,
       Paint()
-        ..color=highlight.withValues(alpha: .54 + voice*.25)
-        ..maskFilter=const MaskFilter.blur(BlurStyle.normal,7));
-    canvas.drawCircle(c,lens*.96,Paint()
-      ..style=PaintingStyle.stroke
-      ..strokeWidth=1.6
-      ..color=enamel.withValues(alpha: .52));
+        ..shader = RadialGradient(
+          center: const Alignment(-.15, -.22),
+          radius: 1.18,
+          colors: [
+            const Color(0xFF03102C),
+            const Color(0xFF080B31),
+            const Color(0xFF160C37),
+            const Color(0xFF070919),
+            const Color(0xFF12112E),
+          ],
+          stops: const [0, .28, .52, .83, 1],
+        ).createShader(globe),
+    );
+
+    canvas.save();
+    canvas.clipPath(Path()..addOval(globe));
+
+    // Volumetric light clouds live inside the dark body, in opposing corners.
+    final blueCentre = Offset(c.dx - radius * .47, c.dy - radius * .30);
+    canvas.drawCircle(
+      blueCentre,
+      radius * .98,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            electric.withValues(alpha: .22 + energy * .10),
+            blue.withValues(alpha: .15),
+            Colors.transparent,
+          ],
+          stops: const [0, .48, 1],
+        ).createShader(
+          Rect.fromCircle(center: blueCentre, radius: radius * .98),
+        ),
+    );
+    final warm = Offset(c.dx + radius * .55, c.dy + radius * .36);
+    canvas.drawCircle(
+      warm,
+      radius * .88,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            amber.withValues(alpha: .25 + energy * .11),
+            hotPink.withValues(alpha: .13),
+            Colors.transparent,
+          ],
+          stops: const [0, .47, 1],
+        ).createShader(
+          Rect.fromCircle(center: warm, radius: radius * .88),
+        ),
+    );
+
+    // Different wave frequencies and radial perspective create a liquid-
+    // electric surface, rather than a stack of identical hair-thin lines.
+    final surfaceGradient = LinearGradient(
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+      colors: [
+        electric.withValues(alpha: .80),
+        blue.withValues(alpha: .68),
+        violet.withValues(alpha: .89),
+        hotPink.withValues(alpha: .88),
+        amber.withValues(alpha: .97),
+      ],
+      stops: const [0, .26, .49, .68, 1],
+    ).createShader(globe);
+    for (var filament = 0; filament < 32; filament++) {
+      final depth = (filament - 15.5) / 16.0;
+      final path = Path();
+      for (var step = 0; step <= 180; step++) {
+        final u = step / 180.0 * 2 - 1;
+        final x = u * radius * 1.33;
+        final y = depth * radius * .61 +
+            math.sin(u * 4.8 + t * .42 + depth * 3.3) *
+                radius * (.14 + energy * .037) +
+            math.sin(u * 8.1 - t * .28 + depth * 8.2) *
+                radius * .070 +
+            math.cos(u * 13.0 + t * .17 + filament * .14) *
+                radius * .013;
+        if (step == 0) {
+          path.moveTo(c.dx + x, c.dy + y);
+        } else {
+          path.lineTo(c.dx + x, c.dy + y);
+        }
+      }
+      final alpha = .26 + (.30 * (1 - depth.abs())) + energy * .10;
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = violet.withValues(alpha: alpha * .20)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 6
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
+      );
+      canvas.drawPath(
+        path,
+        Paint()
+          ..shader = surfaceGradient
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = filament % 7 == 0 ? 1.25 : .53,
+      );
+    }
+
+    // Dynamic turbulent ribbons drift across the front like electric silk.
+    for (var ribbon = 0; ribbon < 7; ribbon++) {
+      final path = Path();
+      final spread = (ribbon - 3.0) * radius * .155;
+      for (var i = 0; i <= 185; i++) {
+        final x = (i / 185.0 * 2 - 1) * radius * 1.38;
+        final fold = math.sin(x / radius * 2.95 +
+                t * (ribbon.isEven ? .81 : -.66) +
+                ribbon * .92) * radius * (.20 + .055 * energy);
+        final micro = math.sin(x / radius * 9.0 - t * .50 + ribbon * 1.3)
+            * radius * .055;
+        final point = Offset(c.dx + x, c.dy + spread + fold + micro);
+        if (i == 0) {
+          path.moveTo(point.dx, point.dy);
+        } else {
+          path.lineTo(point.dx, point.dy);
+        }
+      }
+      final color = ribbon == 6
+          ? amber
+          : ribbon == 5
+              ? hotPink
+              : ribbon.isEven
+                  ? electric
+                  : violet;
+      canvas.drawPath(path, glow(color, .35 + energy * .10, 15, 15));
+      canvas.drawPath(path, glow(color, .47 + energy * .18, 4, 4.8));
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = Color.lerp(color, white, .28)!.withValues(
+            alpha: (.60 + energy * .17).clamp(0.0, 1.0).toDouble(),
+          )
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = .94,
+      );
+    }
+
+    // Flickering points of energized material in three dimensional depth.
+    for (var i = 0; i < 100; i++) {
+      final angle = i * 2.399963229728653 + t * .13;
+      final distance = math.sqrt((i + .5) / 100.0) * radius * .98;
+      final point = Offset(
+        c.dx + math.cos(angle) * distance,
+        c.dy + math.sin(angle) * distance * .87,
+      );
+      final shimmer = .24 + .50 *
+          (.5 + .5 * math.sin(t * 3.2 + i * .43));
+      final color = point.dx > c.dx + radius * .10 ? amber : electric;
+      canvas.drawCircle(
+        point,
+        i % 6 == 0 ? 1.25 : .55,
+        Paint()..color = color.withValues(alpha: shimmer),
+      );
+    }
+    canvas.restore();
+
+    // Different colored refractive rim segments are non-uniform and glowing.
+    final rim = Rect.fromCircle(center: c, radius: radius * 1.015);
+    final sweep = SweepGradient(
+      transform: GradientRotation(t * .15),
+      colors: [
+        electric.withValues(alpha: .15),
+        electric.withValues(alpha: .99),
+        blue.withValues(alpha: .53),
+        violet.withValues(alpha: .92),
+        amber.withValues(alpha: .96),
+        hotPink.withValues(alpha: .75),
+        electric.withValues(alpha: .15),
+      ],
+      stops: const [0, .21, .36, .56, .75, .90, 1],
+    ).createShader(rim);
+    canvas.drawArc(
+      rim, t * .028, math.pi * 2, false,
+      Paint()
+        ..shader = sweep
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 6
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+    );
+    canvas.drawArc(
+      rim, t * .028, math.pi * 2, false,
+      Paint()
+        ..shader = sweep
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.85,
+    );
+
+    // Broken floating corona tendrils above and below the spherical body.
+    for (var arc = 0; arc < 15; arc++) {
+      final p = Path();
+      final side = arc.isEven ? -1.0 : 1.0;
+      final ax = side * radius * (.52 + arc % 5 * .087);
+      for (var step = 0; step <= 70; step++) {
+        final unit = step / 70.0;
+        final theta = unit * math.pi * 1.4 + t * (.12 + arc * .004) + arc * 1.18;
+        final orbit = radius * (.93 + .07 * math.sin(theta * 2 + arc));
+        final x = c.dx + ax * math.cos(theta) * .6 +
+            orbit * math.cos(theta) * .63;
+        final y = c.dy + (arc.isEven ? -1 : 1) *
+            orbit * math.sin(theta) * (.50 + arc % 3 * .11);
+        if (step == 0) {
+          p.moveTo(x, y);
+        } else {
+          p.lineTo(x, y);
+        }
+      }
+      final color = arc % 4 == 0
+          ? amber
+          : arc.isEven ? violet : electric;
+      canvas.drawPath(p, glow(color, .095, 6, 8));
+      canvas.drawPath(p, glow(color, .24 + energy * .08, .5, .6));
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _KineticCorePainter old)=>
-    phase!=old.phase || voice!=old.voice;
+  bool shouldRepaint(covariant _EnergySpherePainter old) =>
+      old.phase != phase || old.energy != energy;
 }
 
 '''
