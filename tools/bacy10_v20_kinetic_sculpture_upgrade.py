@@ -6,9 +6,6 @@ champagne/ivory studio reflections, and reacts to real LiveKit voice states.
 """
 from pathlib import Path
 
-"""Only the central BACY-10 visual: animated blue-violet-amber plasma orb."""
-from pathlib import Path
-
 SCULPTURE = r'''
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
