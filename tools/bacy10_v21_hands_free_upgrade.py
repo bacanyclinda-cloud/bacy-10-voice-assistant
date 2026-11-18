@@ -500,7 +500,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with WidgetsBindingObserv
             const SizedBox(height: 19),
             const Text('BACY-10', style: TextStyle(
               fontSize: 26, letterSpacing: 1.1,
-              fontWeight: FontWeight.w650,
+              fontWeight: FontWeight.w600,
               color: Color(0xFFF1F8F3))),
             const SizedBox(height: 6),
             Text(
