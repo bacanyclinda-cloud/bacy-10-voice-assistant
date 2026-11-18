@@ -1,0 +1,46 @@
+name: BACY-10 LiveKit Agent Diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Install official LiveKit CLI
+        run: curl -sSL https://get.livekit.io/cli | bash
+      - name: Inspect deployment status, dispatch, and recent runtime logs
+        shell: bash
+        env:
+          LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          set -euo pipefail
+          lk project add --url "$LIVEKIT_URL" --api-key "$LIVEKIT_API_KEY" --api-secret "$LIVEKIT_API_SECRET" --default bacy10
+          echo '--- AGENT LIST ---'
+          lk agent list --json || true
+          echo '--- AGENT STATUS ---'
+          lk agent status --id CA_4rt8fujSg5pZ --json || true
+          echo '--- DEPLOYMENT SECRET NAMES (not values) ---'
+          lk agent secrets --id CA_4rt8fujSg5pZ || true
+          echo '--- RUNTIME LOG HIGHLIGHTS ---'
+          timeout 18s lk agent logs --id CA_4rt8fujSg5pZ > "$RUNNER_TEMP/bacy10-logs.txt" 2>&1 || true
+          python - <<'PY'
+          import os,re
+          from pathlib import Path
+          s=Path(os.environ['RUNNER_TEMP'],'bacy10-logs.txt').read_text(errors='replace')
+          for name in ('LIVEKIT_API_KEY','LIVEKIT_API_SECRET','GOOGLE_API_KEY'):
+              v=os.environ.get(name,'')
+              if v: s=s.replace(v,'[REDACTED]')
+          s=re.sub(r'AIza[\w-]{18,}', '[REDACTED-GOOGLE-KEY]',s)
+          s=re.sub(r'AQ\.[\w-]{18,}', '[REDACTED-KEY]',s)
+          s=re.sub(r'eyJ[\w-]+\.[\w-]+\.[\w-]+', '[REDACTED-JWT]',s)
+          lines=s.splitlines()
+          print('\n'.join(lines[-75:])[:14000] if lines else 'No runtime logs returned.')
+          PY
