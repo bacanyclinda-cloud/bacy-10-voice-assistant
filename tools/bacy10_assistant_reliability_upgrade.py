@@ -313,7 +313,7 @@ NATIVE_BRANCH = r"""
                                 }
 """
 
-EXTRA_TOOLS = r"""
+EXTRA_TOOLS = r'''
     @function_tool()
     async def navigate_on_android(self, context: RunContext, destination: str) -> str:
         """Open Android maps route search for an address, business or nearest category, e.g. nearest airport. Do not use cloud Playwright to navigate on the phone."""
@@ -353,7 +353,7 @@ EXTRA_TOOLS = r"""
     async def open_phone_photo_picker(self, context: RunContext) -> str:
         """Open Android's private photo picker; only owner-selected images are accessible."""
         return str((await self._phone("bacy10.phone", {"action": "device", "operation": "choose_photo"})).get("message"))
-"""
+'''
 
 def change_one(path: Path, needle: str, replacement: str) -> None:
     data = path.read_text(encoding="utf-8")
