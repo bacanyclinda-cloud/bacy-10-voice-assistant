@@ -92,7 +92,6 @@ class _PearlSculpture extends CustomPainter {
   static const porcelain = Color(0xFFF6ECE0);
   static const champagne = Color(0xFFD2A979);
   static const blush = Color(0xFFD89C83);
-  static const graphite = Color(0xFF0E1115);
 
   Offset projection(_V v, Offset origin, double radius) {
     final depth = 3.9 / (3.9 - v.z * .37);
