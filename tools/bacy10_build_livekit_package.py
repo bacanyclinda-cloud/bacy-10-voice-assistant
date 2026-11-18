@@ -15,6 +15,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from bacy10_phone_memory_upgrade import apply as apply_personal_phone_upgrade
+
 SOURCE_URL = "https://github.com/ruxakK/jarvis-voice-butler.git"
 SOURCE_SHA = "d1cf71e40c72d2429af766646bea4869ba736c77"
 
@@ -585,6 +587,7 @@ def main() -> None:
         copy_tree(upstream / "agent-starter-flutter", output / "mobile")
     configure_agent(output)
     configure_flutter(output)
+    apply_personal_phone_upgrade(output)
     configure_web(output)
     write_guide(output)
     agent_dir = output / "agent" / "src"
