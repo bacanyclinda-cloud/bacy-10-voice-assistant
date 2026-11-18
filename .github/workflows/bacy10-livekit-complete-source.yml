@@ -49,6 +49,8 @@ jobs:
           assert (root/"agent/uv.lock").is_file()
           assert (root/"mobile/lib/main.dart").is_file()
           assert (root/"mobile/android/app/build.gradle").is_file()
+          manifest=(root/"mobile/android/app/src/main/AndroidManifest.xml").read_text()
+          assert 'android.permission.INTERNET' in manifest, "Release APK must have INTERNET permission"
           assert (root/"mobile/assets/.env").is_file()
           assert not list(root.rglob(".env.local")), "Private environment file must never be bundled"
           assert not [p for p in root.rglob("*") if p.suffix.lower() in {".otf", ".ttf", ".woff", ".woff2", ".eot"}], "Font binaries are excluded from the distribution"
