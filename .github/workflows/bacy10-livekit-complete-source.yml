@@ -18,6 +18,7 @@ on:
       - tools/bacy10_owner_profile_upgrade.py
       - tools/bacy10_assistant_reliability_upgrade.py
       - tools/bacy10_v15_assistant_upgrade.py
+      - tools/bacy10_v16_visual_results_upgrade.py
       - config/bacy10-owner-profile.json
       - BACY10-LIVEKIT-DOWNLOAD.md
 
@@ -82,6 +83,8 @@ jobs:
           assert "Mathematics" in (root/"config/bacy10-owner-profile.json").read_text()
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyAccessibilityService.kt").is_file()
           assert "navigate_on_android" in (root/"agent/src/phone_tools.py").read_text()
+          assert "generate_image_with_ai" in (root/"agent/src/phone_tools.py").read_text()
+          assert "BacyResultsPanel" in (root/"mobile/lib/screens/agent_screen.dart").read_text()
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyWakeListener.kt").is_file()
           assert "setScreenShareEnabled(true)" in mobile
           assert "PhoneTools" in agent
