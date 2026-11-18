@@ -201,6 +201,8 @@ def configure_flutter(root: Path) -> None:
       url: Uri.parse(endpoint),
       client: PairingTokenClient(),
     );
+    final agentName = dotenv.env['LIVEKIT_AGENT_NAME']?.trim();
+    final agentDeployment = dotenv.env['LIVEKIT_AGENT_DEPLOYMENT']?.trim();
 
 """ + text[end:]
     text = text.replace(
