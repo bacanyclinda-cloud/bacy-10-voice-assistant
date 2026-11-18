@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { VoiceSculpture, type VoicePhase } from "@/components/VoiceSculpture";
 import { askBacy } from "@/lib/bacy.functions";
+import { speakBacy } from "@/lib/bacy.speech.functions";
 import { readSpeechResults, type BrowserSpeechResult } from "@/lib/speech-results";
 
 export const Route = createFileRoute("/")({
@@ -37,6 +38,7 @@ type SpeechBrowser = Window & {
 
 function BacyVoice() {
   const ask = useServerFn(askBacy);
+  const speak = useServerFn(speakBacy);
   const [phase, setPhase] = useState<VoicePhase>("idle");
   const [level, setLevel] = useState(0);
   const [heard, setHeard] = useState("");
@@ -56,54 +58,88 @@ function BacyVoice() {
   const mounted = useRef(true);
   const firstTap = useRef(false);
   const busy = useRef(false);
+  const audioContext = useRef<AudioContext | null>(null);
+  const activeAudio = useRef<AudioBufferSourceNode | null>(null);
+  const audioRequestNumber = useRef(0);
+
+  useEffect(() => {
+    mounted.current = true;
+    const Speech = (window as SpeechBrowser).SpeechRecognition ?? (window as SpeechBrowser).webkitSpeechRecognition;
+    setSpeechAvailable(Boolean(Speech));
+    return () => {
+      mounted.current = false;
+      if (recognitionWatchdog.current !== null) clearTimeout(recognitionWatchdog.current);
+      if (recognitionRetry.current !== null) clearTimeout(recognitionRetry.current);
+      recognizer.current?.abort();
+      audioRequestNumber.current++;
+      try { activeAudio.current?.stop(); } catch {}
+      if (audioContext.current) void audioContext.current.close().catch(() => {});
+    };
+  }, []);
 
 
-  function say(text: string) {
-    if (!mounted.current) return;
-    if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
-      setError("Speech playback is unavailable in this browser. Please use Chrome with device text-to-speech enabled.");
-      setPhase("error");
-      return;
-    }
-    const synth = window.speechSynthesis;
-    synth.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voices = synth.getVoices();
-    const british = voices.filter((voice) => /^en[-_]GB$/i.test(voice.lang));
-    const choice = british.find((voice) => /daniel|oliver|male|george|ryan/i.test(voice.name))
-      ?? british.find((voice) => /english|british/i.test(voice.name))
-      ?? british[0] ?? null;
-    if (choice) utterance.voice = choice;
-    utterance.lang = "en-GB";
-    utterance.rate = 0.94;
-    utterance.pitch = 0.9;
-    utterance.volume = 1;
-    setVoiceLabel(choice ? choice.name : "Device voice");
-    let hasStarted = false;
-    // A reply on screen is not evidence that audio playback actually started.
-    const watchdog = window.setTimeout(() => {
-      if (!mounted.current || hasStarted) return;
-      if (!synth.speaking) {
-        setError("The browser returned a reply but did not start audio playback. Open the standalone preview in Chrome and check Android text-to-speech settings.");
-        setPhase("error");
+  function unlockAudio() {
+    try {
+      if (!audioContext.current || audioContext.current.state === "closed") {
+        audioContext.current = new AudioContext();
       }
-    }, 10000);
-    utterance.onstart = () => {
-      hasStarted = true;
-      window.clearTimeout(watchdog);
-      if (mounted.current) setPhase("speaking");
-    };
-    utterance.onend = () => {
-      window.clearTimeout(watchdog);
-      if (mounted.current) setPhase("idle");
-    };
-    utterance.onerror = (event) => {
-      window.clearTimeout(watchdog);
-      if (!mounted.current || event.error === "interrupted" || event.error === "canceled") return;
-      setError("The device could not play the response aloud. Check media volume and text-to-speech settings, then tap to try again.");
+      const context = audioContext.current;
+      // Unlock the speaker synchronously during a real tap.
+      void context.resume().catch(() => {});
+      const silent = context.createBufferSource();
+      silent.buffer = context.createBuffer(1, 1, 22050);
+      silent.connect(context.destination);
+      silent.start();
+    } catch {
+      // Real playback errors will be reported when the audio is returned.
+    }
+  }
+
+  async function say(text: string) {
+    if (!mounted.current) return;
+    const request = ++audioRequestNumber.current;
+    try { activeAudio.current?.stop(); } catch {}
+    activeAudio.current = null;
+    setError("");
+    setPhase("thinking");
+    try {
+      const result = await speak({ data: { text: text.slice(0, 1600) } });
+      if (!mounted.current || request !== audioRequestNumber.current) return;
+      if (!("audio" in result) || !result.audio) {
+        setError(result.error || "The AI voice service returned no audio. Your reply is available in text.");
+        setPhase("error");
+        return;
+      }
+      const ctx = audioContext.current;
+      if (!ctx || ctx.state === "closed") {
+        setError("The speaker could not be unlocked. Tap BACY-10 in Chrome to allow audio playback.");
+        setPhase("error");
+        return;
+      }
+      const bytes = Uint8Array.from(atob(result.audio), character => character.charCodeAt(0));
+      const decoded = await ctx.decodeAudioData(bytes.buffer);
+      if (!mounted.current || request !== audioRequestNumber.current) return;
+      await ctx.resume();
+      if (ctx.state !== "running") throw new Error("Audio output is suspended");
+      const source = ctx.createBufferSource();
+      source.buffer = decoded;
+      source.connect(ctx.destination);
+      activeAudio.current = source;
+      source.onended = () => {
+        if (activeAudio.current === source) {
+          activeAudio.current = null;
+          if (mounted.current) setPhase("idle");
+        }
+      };
+      setVoiceLabel("OpenAI · Onyx");
+      setPhase("speaking");
+      source.start();
+    } catch (err) {
+      if (!mounted.current || request !== audioRequestNumber.current) return;
+      console.error("BACY-10 real speech playback failed", err instanceof Error ? err.name : "unknown");
+      setError("Real AI voice audio could not play in this browser. Open BACY-10 directly in Chrome.");
       setPhase("error");
-    };
-    synth.speak(utterance);
+    }
   }
 
   async function send(input: string) {
@@ -157,8 +193,10 @@ function BacyVoice() {
       return;
     }
     if (attempt === 0) {
-      window.speechSynthesis?.cancel();
-      window.speechSynthesis?.resume();
+      unlockAudio();
+      audioRequestNumber.current++;
+      try { activeAudio.current?.stop(); } catch {}
+      activeAudio.current = null;
       manuallyStopped.current = false;
       firstTap.current = true;
       setHeard("");
@@ -291,18 +329,22 @@ function BacyVoice() {
     }
     if (phase === "thinking") return;
     if (phase === "speaking") {
-      window.speechSynthesis?.cancel();
+      audioRequestNumber.current++;
+      try { activeAudio.current?.stop(); } catch {}
+      activeAudio.current = null;
       setPhase("idle");
     }
+    unlockAudio();
     beginListening();
   }
 
   function testSpeaker() {
-    // An explicitly labelled local TTS test, not a fabricated AI answer.
-    const testLine = "Good day, sir. This is BACY-10. My speaker test is working.";
+    // Explicit real-AI speaker test, not a fictional assistant reply.
+    unlockAudio();
+    const testLine = "Good day, sir. This is BACY-10. Your AI voice is ready.";
     setError("");
     setReply(testLine);
-    say(testLine);
+    void say(testLine);
   }
 
   function submitTyped(event: FormEvent<HTMLFormElement>) {
@@ -311,15 +353,16 @@ function BacyVoice() {
     if (!content) return;
     setDraft("");
     setTextMode(false);
+    unlockAudio();
     void send(content);
   }
 
   const stateText = phase === "listening" ? "Listening" :
-    phase === "thinking" ? "Thinking" :
+    phase === "thinking" ? (reply ? "Preparing AI voice" : "Thinking") :
     phase === "speaking" ? "Speaking" :
     phase === "error" ? "Connection needs attention" : "At your service";
   const instruction = phase === "listening" ? "Speak naturally. Tap to finish." :
-    phase === "thinking" ? "Considering your request" :
+    phase === "thinking" ? (reply ? "Generating speech audio" : "Considering your request") :
     phase === "speaking" ? "Tap to interrupt and speak" :
     phase === "error" ? "Tap to try again" : "Tap anywhere to speak";
 
@@ -354,7 +397,7 @@ function BacyVoice() {
             <button className="voice-text-fallback" type="button" onClick={() => setTextMode(true)}>Type instead</button>
           </div>}
       </section>
-      <span className="voice-footer" aria-hidden="true">{voiceLabel && phase === "speaking" ? "BRITISH VOICE · " + voiceLabel : "BACY-10 / VOICE INTERFACE"}</span>
+      <span className="voice-footer" aria-hidden="true">{voiceLabel && phase === "speaking" ? "AI-GENERATED · " + voiceLabel : "BACY-10 / AI-GENERATED VOICE"}</span>
     </main>
   );
 }
