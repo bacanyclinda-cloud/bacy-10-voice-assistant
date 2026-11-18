@@ -21,6 +21,9 @@ from bacy10_v15_assistant_upgrade import apply as apply_v15_assistant
 from bacy10_v16_visual_results_upgrade import apply as apply_visual_results
 from bacy10_v17_fluid_motion_upgrade import apply as apply_fluid_motion
 from bacy10_v18_search_skills_upgrade import apply as apply_search_skills
+from bacy10_v19_stability_upgrade import apply as apply_stability
+from bacy10_v20_kinetic_sculpture_upgrade import apply as apply_kinetic_visual
+from bacy10_v21_hands_free_upgrade import apply as apply_handsfree
 from bacy10_android_device_controls import apply as apply_device_controls
 from bacy10_center_orb import apply as apply_center_orb
 from bacy10_owner_profile_upgrade import apply as apply_built_in_profile
@@ -604,6 +607,9 @@ def main() -> None:
     apply_visual_results(output)
     apply_fluid_motion(output)
     apply_search_skills(output)
+    apply_stability(output)
+    apply_kinetic_visual(output)
+    apply_handsfree(output)
     configure_web(output)
     write_guide(output)
     agent_dir = output / "agent" / "src"
