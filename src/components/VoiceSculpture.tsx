@@ -38,7 +38,7 @@ float fbm(vec2 p) {
   return v;
 }
 void main(){
-  vec2 uv = (gl_FragCoord.xy - uResolution * 0.5) / uResolution.y;
+  vec2 uv = (gl_FragCoord.xy - uResolution * 0.5) / min(uResolution.x,uResolution.y);
   float t = uTime;
   float activity = clamp(uActivity, 0., 1.);
   float slow = t * (.16 + uMode * .12);
