@@ -19,6 +19,8 @@ on:
       - tools/bacy10_assistant_reliability_upgrade.py
       - tools/bacy10_v15_assistant_upgrade.py
       - tools/bacy10_v16_visual_results_upgrade.py
+      - tools/bacy10_v17_fluid_motion_upgrade.py
+      - tools/bacy10_v18_search_skills_upgrade.py
       - config/bacy10-owner-profile.json
       - BACY10-LIVEKIT-DOWNLOAD.md
 
@@ -85,6 +87,8 @@ jobs:
           assert "navigate_on_android" in (root/"agent/src/phone_tools.py").read_text()
           assert "generate_image_with_ai" in (root/"agent/src/phone_tools.py").read_text()
           assert "BacyResultsPanel" in (root/"mobile/lib/screens/agent_screen.dart").read_text()
+          assert "sdk.AgentState.speaking" in (root/"mobile/lib/widgets/bacy_live_orb.dart").read_text()
+          assert (root/"agent/src/quick_search.py").is_file()
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyWakeListener.kt").is_file()
           assert "setScreenShareEnabled(true)" in mobile
           assert "PhoneTools" in agent
@@ -128,7 +132,7 @@ jobs:
         run: uv run playwright install --with-deps chromium
       - name: Run offline agent and real browser tests
         working-directory: source/agent
-        run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_browser.py
+        run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_quick_search.py tests/test_browser.py
       # The upstream tests/test_agent.py evaluates live LLM responses using a
       # real LiveKit inference API key. Run it ONLY in your configured environment;
       # no fabricated keys are supplied to CI.
