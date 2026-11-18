@@ -228,7 +228,7 @@ Open http://localhost:3000 on the development machine.
 Do not expose the development token endpoint to the public Internet.
 
 ## Compile your own Android APK
-Install Flutter SDK 3.5.1 or newer, Android SDK/JDK as required by Flutter.
+Install Flutter SDK 3.38.2 (recommended for this Gradle 8.14 project), Android SDK and Java 17.\nDo not use Flutter 3.50 with this template unless you also upgrade Android Gradle/AGP compatibility.
 In LiveKit Cloud enable a SANDBOX TOKEN SERVER for development.
 Edit mobile/assets/.env and set LIVEKIT_SANDBOX_ID to your own sandbox ID.
 The Flutter app will NOT connect to the tutorial's public demo by default.
