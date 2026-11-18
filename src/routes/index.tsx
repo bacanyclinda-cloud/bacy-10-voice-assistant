@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { VoiceSculpture, type VoicePhase } from "@/components/VoiceSculpture";
 import { askBacy } from "@/lib/bacy.functions";
+import { readSpeechResults, type BrowserSpeechResult } from "@/lib/speech-results";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -16,8 +17,7 @@ export const Route = createFileRoute("/")({
 });
 
 type HistoryMessage = { role: "user" | "assistant"; content: string };
-type SpeechResult = { isFinal: boolean; 0: { transcript: string } };
-type SpeechEvent = { results: ArrayLike<SpeechResult>; resultIndex: number };
+type SpeechEvent = { results: ArrayLike<BrowserSpeechResult>; resultIndex: number };
 type SpeechError = { error: string };
 type Recognizer = {
   lang: string; continuous: boolean; interimResults: boolean;
@@ -25,6 +25,9 @@ type Recognizer = {
   onresult: ((event: SpeechEvent) => void) | null;
   onend: (() => void) | null;
   onerror: ((event: SpeechError) => void) | null;
+  onaudiostart?: (() => void) | null;
+  onspeechstart?: (() => void) | null;
+  onspeechend?: (() => void) | null;
   start: () => void; stop: () => void; abort: () => void;
 };
 type SpeechBrowser = Window & {
@@ -44,76 +47,16 @@ function BacyVoice() {
   const [speechAvailable, setSpeechAvailable] = useState(true);
   const [voiceLabel, setVoiceLabel] = useState("");
   const recognizer = useRef<Recognizer | null>(null);
-  const stream = useRef<MediaStream | null>(null);
-  const meterContext = useRef<AudioContext | null>(null);
-  const meterFrame = useRef<number | null>(null);
+  // Recognition controls the microphone itself. A second getUserMedia capture
+  // can disrupt the browser recognition service on Android.
+  const recognitionWatchdog = useRef<number | null>(null);
+  const recognitionRetry = useRef<number | null>(null);
+  const manuallyStopped = useRef(false);
   const history = useRef<HistoryMessage[]>([]);
   const mounted = useRef(true);
   const firstTap = useRef(false);
   const busy = useRef(false);
 
-  function stopMeter() {
-    if (meterFrame.current !== null) cancelAnimationFrame(meterFrame.current);
-    meterFrame.current = null;
-    stream.current?.getTracks().forEach((track) => track.stop());
-    stream.current = null;
-    if (meterContext.current) void meterContext.current.close().catch(() => {});
-    meterContext.current = null;
-    if (mounted.current) setLevel(0);
-  }
-
-  useEffect(() => {
-    mounted.current = true;
-    const Speech = (window as SpeechBrowser).SpeechRecognition ?? (window as SpeechBrowser).webkitSpeechRecognition;
-    setSpeechAvailable(Boolean(Speech));
-    return () => {
-      mounted.current = false;
-      recognizer.current?.abort();
-      stopMeter();
-      window.speechSynthesis?.cancel();
-    };
-  }, []);
-
-  async function startMeter() {
-    // This stream exists only to visualise actual microphone input. It is not saved or uploaded.
-    if (!navigator.mediaDevices?.getUserMedia) return;
-    try {
-      const capture = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
-      if (!mounted.current || !recognizer.current) {
-        capture.getTracks().forEach((track) => track.stop());
-        return;
-      }
-      stream.current = capture;
-      const audio = new AudioContext();
-      meterContext.current = audio;
-      if (audio.state === "suspended") await audio.resume();
-      const analyser = audio.createAnalyser();
-      analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.75;
-      audio.createMediaStreamSource(capture).connect(analyser);
-      const values = new Uint8Array(analyser.fftSize);
-      let last = 0;
-      const sample = (time: number) => {
-        analyser.getByteTimeDomainData(values);
-        let sum = 0;
-        for (let i = 0; i < values.length; i++) {
-          const v = (values[i] - 128) / 128;
-          sum += v * v;
-        }
-        if (time - last > 55 && mounted.current) {
-          setLevel(Math.min(1, Math.sqrt(sum / values.length) * 5.2));
-          last = time;
-        }
-        meterFrame.current = requestAnimationFrame(sample);
-      };
-      meterFrame.current = requestAnimationFrame(sample);
-    } catch {
-      // Speech recognition may still work without a separate volume meter.
-      if (mounted.current) setLevel(0);
-    }
-  }
 
   function say(text: string) {
     if (!mounted.current) return;
@@ -167,7 +110,7 @@ function BacyVoice() {
     const content = input.trim();
     if (!content || busy.current || !mounted.current) return;
     busy.current = true;
-    stopMeter();
+    setLevel(0);
     setHeard(content);
     setReply("");
     setError("");
