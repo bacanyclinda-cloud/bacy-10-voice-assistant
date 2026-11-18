@@ -199,7 +199,8 @@ def replace_one(path: Path, target: str, replacement: str) -> None:
     old=path.read_text(encoding="utf-8")
     count=old.count(target)
     if count != 1:
-        raise RuntimeError("Expected one anchor in " + str(path) + ": " + target[:70]
+        raise RuntimeError(
+            "Expected one anchor in " + str(path) + ": " + target[:70]
             + " count=" + str(count))
     path.write_text(old.replace(target,replacement,1),encoding="utf-8")
 
