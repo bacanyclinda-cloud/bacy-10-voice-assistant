@@ -12,6 +12,11 @@ on:
       - tools/bacy10_build_livekit_package.py
       - BACY10-LIVEKIT-DOWNLOAD.md
 
+# Only test the newest source revision; cancel obsolete APK builds on this branch.
+concurrency:
+  group: bacy10-package-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
