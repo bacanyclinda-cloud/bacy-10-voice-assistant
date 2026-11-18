@@ -195,3 +195,43 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: "1"
         run: pnpm build
+
+  livekit-cloud-update:
+    name: Deploy updated voice-agent tools after all checks pass
+    if: github.ref == 'refs/heads/feature/bacy10-built-in-owner-profile-20261118'
+    needs: [python-agent, flutter-android, nextjs-web]
+    runs-on: ubuntu-latest
+    environment: livekit-production
+    timeout-minutes: 45
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: BACY10-LIVEKIT-FULL-SOURCE
+          path: ./source
+      - name: Check private cloud credentials
+        env:
+          LIVEKIT_URL: \${{ secrets.LIVEKIT_URL }}
+          LIVEKIT_API_KEY: \${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: \${{ secrets.LIVEKIT_API_SECRET }}
+          GOOGLE_API_KEY: \${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          test -n "$LIVEKIT_URL"
+          test -n "$LIVEKIT_API_KEY"
+          test -n "$LIVEKIT_API_SECRET"
+          test -n "$GOOGLE_API_KEY"
+      - name: Install official LiveKit CLI
+        run: curl -fsSL https://get.livekit.io/cli | bash
+      - name: Deploy tested BACY-10 agent to existing LiveKit service
+        working-directory: source/agent
+        env:
+          LIVEKIT_URL: \${{ secrets.LIVEKIT_URL }}
+          LIVEKIT_API_KEY: \${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: \${{ secrets.LIVEKIT_API_SECRET }}
+          GOOGLE_API_KEY: \${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf 'GOOGLE_API_KEY=%s\n' "$GOOGLE_API_KEY" > "$RUNNER_TEMP/bacy10-agent-secrets.env"
+          lk project add --url "$LIVEKIT_URL" --api-key "$LIVEKIT_API_KEY" --api-secret "$LIVEKIT_API_SECRET" --default bacy10
+          lk agent deploy --id "CA_4rt8fujSg5pZ" --secrets-file "$RUNNER_TEMP/bacy10-agent-secrets.env"
+          rm -f "$RUNNER_TEMP/bacy10-agent-secrets.env"
