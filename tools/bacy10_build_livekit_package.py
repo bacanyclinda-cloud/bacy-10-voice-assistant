@@ -85,6 +85,16 @@ def configure_agent(root: Path) -> None:
         txt = txt[:begin] + txt[end:]
     prompts.write_text(txt, encoding="utf-8")
 
+    # Upstream test has an import typo: AGENT_ISNTRUCTIONS (sic).
+    # Correct the test import so the actual agent behaviour tests can run.
+    upstream_test = root / "agent" / "tests" / "test_prompts.py"
+    if upstream_test.exists():
+        test_content = upstream_test.read_text(encoding="utf-8")
+        upstream_test.write_text(
+            test_content.replace("AGENT_ISNTRUCTIONS", "AGENT_INSTRUCTIONS"),
+            encoding="utf-8",
+        )
+
     env = root / "agent" / ".env.example"
     env.write_text(
         "# Real credentials are required. Copy this file to .env.local.\n"
