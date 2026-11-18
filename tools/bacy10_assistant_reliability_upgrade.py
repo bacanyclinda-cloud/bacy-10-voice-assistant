@@ -258,7 +258,7 @@ ACCESS_CONFIG = r"""<?xml version="1.0" encoding="utf-8"?>
     android:canRetrieveWindowContent="true"
     android:description="@string/accessibility_description"
     android:notificationTimeout="150"
-    android:flags="flagReportViewIds"/>
+    android:accessibilityFlags="flagReportViewIds"/>
 """
 
 NATIVE_BRANCH = r"""
