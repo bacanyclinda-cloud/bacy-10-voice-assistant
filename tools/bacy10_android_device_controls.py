@@ -10,7 +10,7 @@ KOTLIN_BRANCH = r'''
                                     val apps = packageManager.queryIntentActivities(query, 0)
                                         .map { it.loadLabel(packageManager).toString().trim() }
                                         .filter { it.isNotBlank() }.distinct().sorted().take(200)
-                                    if (apps.isEmpty) "Android did not expose any installed launchable apps."
+                                    if (apps.isEmpty()) "Android did not expose any installed launchable apps."
                                     else "Installed apps: " + apps.joinToString(", ")
                                 }
                                 "torch" -> {
@@ -128,6 +128,93 @@ KOTLIN_BRANCH = r'''
                                         "Opened an SMS draft. Review it and tap Send."
                                     }
                                 }
+
+                                "email_draft" -> {
+                                    val recipient = call.argument<String>("recipient")?.trim().orEmpty()
+                                    val subject = call.argument<String>("subject")?.take(250).orEmpty()
+                                    val body = call.argument<String>("body")?.take(12000).orEmpty()
+                                    if (recipient.length > 254 || !recipient.contains('@') || recipient.contains('\n')) {
+                                        "Please give a valid email address."
+                                    } else {
+                                        val intent = Intent(Intent.ACTION_SENDTO,
+                                            android.net.Uri.parse("mailto:" + android.net.Uri.encode(recipient)))
+                                        intent.putExtra(Intent.EXTRA_EMAIL, arrayOf(recipient))
+                                        intent.putExtra(Intent.EXTRA_SUBJECT, subject)
+                                        intent.putExtra(Intent.EXTRA_TEXT, body)
+                                        if (intent.resolveActivity(packageManager) == null) {
+                                            "No compatible email application is available."
+                                        } else {
+                                            startActivity(intent)
+                                            "Opened an email draft. Review it and tap Send."
+                                        }
+                                    }
+                                }
+                                "save_pdf" -> {
+                                    val title = call.argument<String>("title")?.trim()?.take(100).orEmpty()
+                                    val body = call.argument<String>("content")?.trim().orEmpty()
+                                    if (body.isBlank() || body.length > 20000) {
+                                        "A PDF needs 1 to 20000 characters of text."
+                                    } else if (android.os.Build.VERSION.SDK_INT < 29) {
+                                        "PDF export needs Android 10 or newer."
+                                    } else {
+                                        val pdf = android.graphics.pdf.PdfDocument()
+                                        try {
+                                            val pen = android.graphics.Paint(1).apply {
+                                                color = android.graphics.Color.rgb(30, 43, 55)
+                                                textSize = 12f
+                                            }
+                                            val header = android.graphics.Paint(1).apply {
+                                                color = android.graphics.Color.rgb(30, 83, 115)
+                                                textSize = 19f
+                                            }
+                                            var num = 0
+                                            var page: android.graphics.pdf.PdfDocument.Page? = null
+                                            var y = 85f
+                                            fun newPage() {
+                                                page?.let { pdf.finishPage(it) }
+                                                num++
+                                                page = pdf.startPage(
+                                                    android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, num).create())
+                                                page!!.canvas.drawText("BACY-10", 44f, 40f, header)
+                                                y = 85f
+                                            }
+                                            newPage()
+                                            val text = if (title.isEmpty()) body else title + "\n\n" + body
+                                            text.split("\n").forEach { paragraph ->
+                                                var line = ""
+                                                paragraph.split(Regex("\\s+")).forEach { word ->
+                                                    val candidate = if (line.isEmpty()) word else line + " " + word
+                                                    if (pen.measureText(candidate) > 500f && line.isNotEmpty()) {
+                                                        if (y > 790f) newPage()
+                                                        page!!.canvas.drawText(line, 44f, y, pen)
+                                                        y += 18f
+                                                        line = word
+                                                    } else { line = candidate }
+                                                }
+                                                if (line.isNotBlank()) {
+                                                    if (y > 790f) newPage()
+                                                    page!!.canvas.drawText(line, 44f, y, pen)
+                                                    y += 18f
+                                                } else { y += 12f }
+                                            }
+                                            page?.let { pdf.finishPage(it) }
+                                            val values = android.content.ContentValues().apply {
+                                                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME,
+                                                    "BACY10_" + System.currentTimeMillis() + ".pdf")
+                                                put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                                                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
+                                                    android.os.Environment.DIRECTORY_DOWNLOADS + "/BACY10")
+                                            }
+                                            val file = contentResolver.insert(
+                                                android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                                                ?: throw IllegalStateException("Could not create PDF.")
+                                            val output = contentResolver.openOutputStream(file)
+                                                ?: throw IllegalStateException("Could not write PDF.")
+                                            output.use { pdf.writeTo(it) }
+                                            "Saved the PDF in Downloads/BACY10."
+                                        } finally { pdf.close() }
+                                    }
+                                }
                                 "website" -> {
                                     val url = call.argument<String>("url")?.trim().orEmpty()
                                     if ((!url.startsWith("https://") && !url.startsWith("http://")) || url.length > 1200) {
@@ -205,6 +292,16 @@ PY_TOOLS = r'''
     async def open_website_on_phone(self, context: RunContext, url: str) -> str:
         """Open an HTTP or HTTPS website in owner's Android browser."""
         return str((await self._phone("bacy10.phone", {"action": "device", "operation": "website", "url": url})).get("message"))
+    @function_tool()
+    async def draft_email_on_phone(self, context: RunContext, recipient: str, subject: str, body: str) -> str:
+        """Open email draft on Android for review and manual send, without inbox API access."""
+        return str((await self._phone("bacy10.phone", {"action": "device", "operation": "email_draft", "recipient": recipient, "subject": subject, "body": body})).get("message"))
+
+    @function_tool()
+    async def export_pdf_to_phone(self, context: RunContext, title: str, content: str) -> str:
+        """Save text as an actual PDF in phone Downloads/BACY10, maximum 20,000 characters."""
+        return str((await self._phone("bacy10.phone", {"action": "device", "operation": "save_pdf", "title": title, "content": content})).get("message"))
+
 '''
 
 def apply(root: Path) -> None:
@@ -220,6 +317,9 @@ def apply(root: Path) -> None:
     if permission not in xml:
         xml = xml.replace('</manifest>', '    ' + permission + '\n</manifest>')
     manifest.write_text(xml, encoding="utf-8")
+    pubspec = mobile / "pubspec.yaml"
+    versions = pubspec.read_text(encoding="utf-8")
+    pubspec.write_text(versions.replace("version: 1.2.0+16", "version: 1.3.0+17"), encoding="utf-8")
 
     ctrl = mobile / "lib/controllers/app_ctrl.dart"
     dart = ctrl.read_text(encoding="utf-8")
@@ -248,6 +348,8 @@ def apply(root: Path) -> None:
             self.open_phone_dialer,
             self.draft_sms_message,
             self.open_website_on_phone,
+            self.draft_email_on_phone,
+            self.export_pdf_to_phone,
 '''
     if tooltext.count(needle) != 1: raise RuntimeError("Missing registered phone tool list")
     tooltext = tooltext.replace(needle, needle + extra, 1)
