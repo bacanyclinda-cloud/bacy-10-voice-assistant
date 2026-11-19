@@ -10,6 +10,7 @@ on:
       - feature/bacy10-android-phone-personal-memory-20261118
       - feature/bacy10-built-in-owner-profile-20261118
       - feature/bacy10-keep-formal-british-20261119
+      - feature/bacy10-quick-launch-overlay-20261119
     paths:
       - .github/workflows/bacy10-livekit-complete-source.yml
       - tools/bacy10_build_livekit_package.py
@@ -30,6 +31,7 @@ on:
       - tools/bacy10_v27_compact_overlay_upgrade.py
       - tools/bacy10_v28_cloud_memory_upgrade.py
       - tools/bacy10_v29_personal_voice_upgrade.py
+      - tools/bacy10_v30_quick_overlay_upgrade.py
       - cloud/bacy10-memory-worker.mjs
       - config/bacy10-owner-profile.json
       - BACY10-LIVEKIT-DOWNLOAD.md
@@ -107,8 +109,11 @@ jobs:
           assert "RECONNECT VOICE" in (root/"mobile/lib/screens/agent_screen.dart").read_text()
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyVoiceService.kt").is_file()
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyCompactOverlayService.kt").is_file()
+          assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyOverlayLauncherActivity.kt").is_file()
+          assert 'BacyOverlayLauncherActivity' in manifest
+          assert 'Ask BACY-10' in (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyCompactOverlayService.kt").read_text()
           assert 'SYSTEM_ALERT_WINDOW' in manifest
-          assert 'version: 2.9.0+33' in (root/"mobile/pubspec.yaml").read_text()
+          assert 'version: 3.0.0+34' in (root/"mobile/pubspec.yaml").read_text()
           assert (root/"mobile/lib/support/bacy10_cloud_memory.dart").is_file()
           assert 'conversation_item_added' in agent
           assert "'fuck you, bitch'" in agent
@@ -159,7 +164,7 @@ jobs:
         run: uv run playwright install --with-deps chromium
       - name: Run offline agent and real browser tests
         working-directory: source/agent
-        run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_quick_search.py tests/test_image_provider.py tests/test_voice_stability.py tests/test_background_voice.py tests/test_floating_capsule.py tests/test_cloud_memory.py tests/test_owner_tone.py tests/test_browser.py
+        run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_quick_search.py tests/test_image_provider.py tests/test_voice_stability.py tests/test_background_voice.py tests/test_floating_capsule.py tests/test_quick_overlay.py tests/test_cloud_memory.py tests/test_owner_tone.py tests/test_browser.py
       # The upstream tests/test_agent.py evaluates live LLM responses using a
       # real LiveKit inference API key. Run it ONLY in your configured environment;
       # no fabricated keys are supplied to CI.
