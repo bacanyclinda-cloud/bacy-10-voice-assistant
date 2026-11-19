@@ -25,6 +25,8 @@ from bacy10_v19_stability_upgrade import apply as apply_stability
 from bacy10_v20_kinetic_sculpture_upgrade import apply as apply_kinetic_visual
 from bacy10_v21_hands_free_upgrade import apply as apply_handsfree
 from bacy10_v25_voice_stability_upgrade import apply as apply_voice_stability
+from bacy10_v26_background_voice_upgrade import apply as apply_background_voice
+from bacy10_v27_compact_overlay_upgrade import apply as apply_compact_overlay
 from bacy10_android_device_controls import apply as apply_device_controls
 from bacy10_center_orb import apply as apply_center_orb
 from bacy10_owner_profile_upgrade import apply as apply_built_in_profile
@@ -612,6 +614,8 @@ def main() -> None:
     apply_kinetic_visual(output)
     apply_handsfree(output)
     apply_voice_stability(output)
+    apply_background_voice(output)
+    apply_compact_overlay(output)
     configure_web(output)
     write_guide(output)
     agent_dir = output / "agent" / "src"
