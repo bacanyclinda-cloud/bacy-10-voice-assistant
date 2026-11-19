@@ -111,7 +111,8 @@ jobs:
           assert 'version: 2.9.0+33' in (root/"mobile/pubspec.yaml").read_text()
           assert (root/"mobile/lib/support/bacy10_cloud_memory.dart").is_file()
           assert 'conversation_item_added' in agent
-          assert 'Ordinary swear words' in agent
+          assert "'fuck you, bitch'" in agent
+          assert 'Do not automatically censor or refuse' in agent
           assert 'British butler persona' in agent
           assert 'Honour Android permissions' in agent
           assert "Never generate an image, show a lesson popup" in agent
