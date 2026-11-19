@@ -32,6 +32,9 @@ from bacy10_memory_reliability_upgrade import apply as apply_durable_memory
 from bacy10_v33_owner_directive_upgrade import apply as apply_owner_directive
 from bacy10_v34_behavior_restore import apply as apply_behavior_restore
 from bacy10_v35_provider_settings_upgrade import apply as apply_provider_settings
+from bacy10_v36_owner_ui_upgrade import apply as apply_owner_ui
+from bacy10_v36_android_actions_upgrade import apply as apply_android_actions
+from bacy10_v36_mcp_slots_upgrade import apply as apply_mcp_slots
 from bacy10_android_device_controls import apply as apply_device_controls
 from bacy10_center_orb import apply as apply_center_orb
 from bacy10_owner_profile_upgrade import apply as apply_built_in_profile
@@ -626,6 +629,9 @@ def main() -> None:
     apply_owner_directive(output)
     apply_behavior_restore(output)
     apply_provider_settings(output)
+    apply_owner_ui(output)
+    apply_android_actions(output)
+    apply_mcp_slots(output)
     configure_web(output)
     write_guide(output)
     agent_dir = output / "agent" / "src"
