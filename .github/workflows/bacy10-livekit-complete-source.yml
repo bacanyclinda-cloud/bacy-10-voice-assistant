@@ -125,7 +125,7 @@ jobs:
           assert '# Built-in owner directive (owner preferences)' in agent
           assert 'Do not censor harmless swear words' in agent
           assert 'Do not automatically censor or refuse' not in agent
-          assert 'British butler persona' not in agent
+          assert '# BACY-10 personality -- owner\'s confirmed preference' not in agent
           assert "Never generate an image, show a lesson popup" in agent
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyWakeListener.kt").is_file()
           assert "setScreenShareEnabled(true)" in mobile
