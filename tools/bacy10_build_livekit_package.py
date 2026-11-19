@@ -28,8 +28,6 @@ from bacy10_v25_voice_stability_upgrade import apply as apply_voice_stability
 from bacy10_v26_background_voice_upgrade import apply as apply_background_voice
 from bacy10_v27_compact_overlay_upgrade import apply as apply_compact_overlay
 from bacy10_v28_cloud_memory_upgrade import apply as apply_cloud_memory
-from bacy10_v29_personal_voice_upgrade import apply as apply_private_persona
-from bacy10_v30_quick_overlay_upgrade import apply as apply_quick_overlay
 from bacy10_memory_reliability_upgrade import apply as apply_durable_memory
 from bacy10_android_device_controls import apply as apply_device_controls
 from bacy10_center_orb import apply as apply_center_orb
@@ -621,8 +619,6 @@ def main() -> None:
     apply_background_voice(output)
     apply_compact_overlay(output)
     apply_cloud_memory(output)
-    apply_private_persona(output)
-    apply_quick_overlay(output)
     apply_durable_memory(output)
     configure_web(output)
     write_guide(output)
