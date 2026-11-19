@@ -84,7 +84,7 @@ def apply(root:Path):
     memory.write_text(updated,encoding="utf8")
 
     once(screen,"        editor.text=facts['owner_behavior_preferences'] ?? '';",
-       "        editor.text=(facts['owner_behavior_preferences'] ?? '').contains('My wellbeing and goals come first') ? facts['owner_behavior_preferences']! : "+repr(OWNER_TEMPLATE).replace("'","\\'")+";")
+       "        editor.text=(facts['owner_behavior_preferences'] ?? '').contains('My wellbeing and goals come first') ? facts['owner_behavior_preferences']! : "+repr(OWNER_TEMPLATE)+";")
     once(screen,"  Future<void> _remove() async {", """  Future<void> _resetOwnerMemory() async {
     final confirmed=await showDialog<bool>(
       context:context,
