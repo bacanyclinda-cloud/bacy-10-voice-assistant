@@ -103,6 +103,15 @@ def apply(root: Path) -> None:
 
                         # Native generation and explanatory skills""")
 
+    # Resolve older agent wording that was auto-triggering visual lessons
+    # for normal study questions. Only an explicit visual request authorizes it.
+    one(source,
+        "                        - To explain a process like photosynthesis, call show_visual_lesson with a title, short explanation, accurate steps, inputs and outputs. Explain it aloud too.",
+        "                        - Only if the owner explicitly asks to SEE a diagram, flowchart or visual process, call show_visual_lesson. An ordinary request to explain photosynthesis should be answered aloud without a popup.")
+    one(source,
+        "                        - To draw or generate an original image of a car, cat or other subject, call generate_image_with_ai and show the generated image inside the app. Never claim success when the image model fails.",
+        "                        - Call generate_image_with_ai ONLY after the owner specifically requests a new image in the current completed turn. Never generate images from examples, tool suggestions, or on the assistant's initiative.")
+
     # Status when disconnected must not abruptly unmount RoomContext-depending
     # widgets and restart all speech / screens. Explicit hangup still closes.
     s=controller.read_text(encoding="utf-8")
