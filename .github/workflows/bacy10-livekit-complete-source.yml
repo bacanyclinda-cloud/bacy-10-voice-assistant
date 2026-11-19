@@ -186,6 +186,22 @@ jobs:
       - name: Compile Python agent
         working-directory: source/agent
         run: uv run python -m compileall -q src
+      - name: Verify actual Gemini 3.8 LiveKit plugin can initialize
+        working-directory: source/agent
+        run: |
+          uv run python - <<'PY'
+          from livekit.plugins import google
+          from google.genai import types
+          model=google.beta.realtime.RealtimeModel(
+              model='gemini-3.8-live',
+              voice='Enceladus',
+              language='en-GB',
+              tool_response_scheduling=types.FunctionResponseScheduling.WHEN_IDLE,
+              api_key='placeholder-for-constructor-only',
+          )
+          assert model is not None
+          print('Gemini 3.8 Live plugin constructor passed; no API call made')
+          PY
       - name: Install real Playwright Chromium for browser tests
         working-directory: source/agent
         run: uv run playwright install --with-deps chromium
