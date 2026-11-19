@@ -319,10 +319,16 @@ def apply(root:Path)->None:
     welcome=mobile/'lib/screens/welcome_screen.dart'
     once(welcome,"import 'package:flutter/material.dart';",
          "import 'package:flutter/material.dart';\nimport 'bacy10_provider_settings_screen.dart';")
-    once(welcome,"tooltip: 'Connection settings',",
-         "tooltip: 'AI providers and connections',")
-    once(welcome,"onPressed: _connectionSettings,",
-         "onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BacyProviderSettingsScreen())),")
+    once(welcome,"            IconButton(\n              tooltip: 'Hands-free permissions',",
+         """            IconButton(
+              tooltip: 'AI providers and connections',
+              onPressed: () => Navigator.of(ctx).push(MaterialPageRoute(
+                builder: (_) => const BacyProviderSettingsScreen())),
+              icon: const Icon(Icons.vpn_key_rounded,
+                color: Color(0xFFDBEAE0)),
+            ),
+            IconButton(
+              tooltip: 'Hands-free permissions',""")
     # Keep the full-screen app/voice design, add one settings icon to the call.
     screen=mobile/'lib/screens/agent_screen.dart'
     once(screen,"import 'package:flutter/material.dart';",
