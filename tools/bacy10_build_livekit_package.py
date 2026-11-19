@@ -31,6 +31,7 @@ from bacy10_v28_cloud_memory_upgrade import apply as apply_cloud_memory
 from bacy10_v29_personal_voice_upgrade import apply as apply_private_persona
 from bacy10_v30_quick_overlay_upgrade import apply as apply_quick_overlay
 from bacy10_memory_reliability_upgrade import apply as apply_durable_memory
+from bacy10_v31_safe_install_variant import apply as apply_safe_install_variant
 from bacy10_android_device_controls import apply as apply_device_controls
 from bacy10_center_orb import apply as apply_center_orb
 from bacy10_owner_profile_upgrade import apply as apply_built_in_profile
@@ -624,6 +625,7 @@ def main() -> None:
     apply_private_persona(output)
     apply_quick_overlay(output)
     apply_durable_memory(output)
+    apply_safe_install_variant(output)
     configure_web(output)
     write_guide(output)
     agent_dir = output / "agent" / "src"
