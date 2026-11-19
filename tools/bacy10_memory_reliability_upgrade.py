@@ -119,6 +119,8 @@ def apply(root: Path) -> None:
       'Saved '+key+' locally. Cloud backup is pending; do not uninstall until the cloud confirms it.';""")
 
     once(mobile / "pubspec.yaml", "version: 3.0.0+34", "version: 3.1.0+35")
+    once(root / "agent/tests/test_quick_overlay.py",
+         "assert 'version: 3.0.0+34'", "assert 'version: 3.1.0+35'")
 
     (root / "agent/tests/test_memory_reliability.py").write_text('''from pathlib import Path
 
