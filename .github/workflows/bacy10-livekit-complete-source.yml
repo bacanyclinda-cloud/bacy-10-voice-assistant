@@ -15,6 +15,7 @@ on:
       - restore/bacy10-original-ui-voice-keep-cloud-20261119
       - feature/bacy10-owner-directive-built-in-20261119
       - fix/bacy10-precloud-behavior-keep-memory-20261119
+      - feature/bacy10-v35-providers-byok-mcp-20261119
     paths:
       - .github/workflows/bacy10-livekit-complete-source.yml
       - tools/bacy10_build_livekit_package.py
@@ -39,6 +40,7 @@ on:
       - tools/bacy10_memory_reliability_upgrade.py
       - tools/bacy10_v33_owner_directive_upgrade.py
       - tools/bacy10_v34_behavior_restore.py
+      - tools/bacy10_v35_provider_settings_upgrade.py
       - config/bacy10-owner-directive.txt
       - cloud/bacy10-memory-worker.mjs
       - config/bacy10-owner-profile.json
@@ -68,6 +70,10 @@ jobs:
 
       - name: Download pinned full tutorial and apply BACY-10 setup
         run: python tools/bacy10_build_livekit_package.py --output build/BACY10-LIVEKIT-FULL-SOURCE
+      - uses: astral-sh/setup-uv@v6
+      - name: Resolve optional MCP agent dependencies
+        working-directory: build/BACY10-LIVEKIT-FULL-SOURCE/agent
+        run: uv lock --python 3.12
 
       - name: Validate essential source and exclude secrets
         run: |
@@ -120,10 +126,14 @@ jobs:
           assert 'BacyOverlayLauncherActivity' not in manifest, 'Restore original app launcher rather than v3.0 overlay'
           assert 'Ask BACY-10' not in (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyCompactOverlayService.kt").read_text()
           assert 'SYSTEM_ALERT_WINDOW' in manifest
-          assert 'version: 3.4.0+39' in (root/"mobile/pubspec.yaml").read_text()
+          assert 'version: 3.5.0+40' in (root/"mobile/pubspec.yaml").read_text()
           assert (root/"mobile/lib/support/bacy10_cloud_memory.dart").is_file()
           assert 'conversation_item_added' in agent
           assert 'save_owner_instruction' in (root/'agent/src/phone_tools.py').read_text()
+          assert (root/'mobile/lib/screens/bacy10_provider_settings_screen.dart').is_file()
+          assert 'bacy10.providers' in mobile
+          assert 'mcp.MCPToolset' in agent
+          assert 'FlutterSecureStorage' in (root/'mobile/lib/support/bacy10_provider_settings.dart').read_text()
           assert 'Earlier {turn.get(' not in agent
           assert 'Talk like a butler' in agent
           assert '# Built-in owner directive (owner preferences)' in agent
@@ -174,7 +184,7 @@ jobs:
         run: uv run playwright install --with-deps chromium
       - name: Run offline agent and real browser tests
         working-directory: source/agent
-        run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_quick_search.py tests/test_image_provider.py tests/test_voice_stability.py tests/test_background_voice.py tests/test_floating_capsule.py tests/test_cloud_memory.py tests/test_memory_reliability.py tests/test_built_in_owner_directive.py tests/test_behavior_restore.py tests/test_browser.py
+        run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_quick_search.py tests/test_image_provider.py tests/test_voice_stability.py tests/test_background_voice.py tests/test_floating_capsule.py tests/test_cloud_memory.py tests/test_memory_reliability.py tests/test_built_in_owner_directive.py tests/test_behavior_restore.py tests/test_owner_provider_settings.py tests/test_browser.py
       # The upstream tests/test_agent.py evaluates live LLM responses using a
       # real LiveKit inference API key. Run it ONLY in your configured environment;
       # no fabricated keys are supplied to CI.
@@ -210,7 +220,7 @@ jobs:
       - name: Upload BACY-10 Android release-style APK
         uses: actions/upload-artifact@v4
         with:
-          name: BACY10-v34-ORIGINAL-ID-RELEASE
+          name: BACY10-v35-ORIGINAL-ID-RELEASE
           path: source/mobile/build/app/outputs/flutter-apk/app-release.apk
           retention-days: 14
           if-no-files-found: error
@@ -223,19 +233,19 @@ jobs:
           code = gradle.read_text()
           old = 'applicationId = "za.co.bacy10.personalassistant"'
           assert code.count(old) == 1
-          gradle.write_text(code.replace(old, 'applicationId = "za.co.bacy10.personalassistant.behavior34"'))
+          gradle.write_text(code.replace(old, 'applicationId = "za.co.bacy10.personalassistant.providers35"'))
           manifest = Path('android/app/src/main/AndroidManifest.xml')
           xml = manifest.read_text()
           old_label = 'android:label="BACY-10"'
           assert xml.count(old_label) == 1
-          manifest.write_text(xml.replace(old_label, 'android:label="BACY-10 Fixed"'))
+          manifest.write_text(xml.replace(old_label, 'android:label="BACY-10 Providers"'))
           PY
           flutter build apk --release
           mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/bacy10-owner-safe.apk
       - name: Upload BACY-10 Restored safe-install APK
         uses: actions/upload-artifact@v4
         with:
-          name: BACY10-v34-SAFE-INSTALL-RELEASE
+          name: BACY10-v35-SAFE-INSTALL-RELEASE
           path: source/mobile/build/app/outputs/flutter-apk/bacy10-owner-safe.apk
           retention-days: 14
           if-no-files-found: error
@@ -268,7 +278,7 @@ jobs:
 
   livekit-cloud-update:
     name: Deploy updated voice-agent tools after all checks pass
-    if: github.ref == 'refs/heads/fix/bacy10-precloud-behavior-keep-memory-20261119'
+    if: github.ref == 'refs/heads/feature/bacy10-v35-providers-byok-mcp-20261119'
     needs: [python-agent, flutter-android, nextjs-web]
     runs-on: ubuntu-latest
     environment: livekit-production
