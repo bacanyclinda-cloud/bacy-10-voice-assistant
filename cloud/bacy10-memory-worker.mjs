@@ -75,7 +75,7 @@ export default {async fetch(req,env){
     if(!key||!value||secretLike(key)||secretLike(value))
       return J({error:"Invalid/sensitive fact"},400);
     const mode=await resetMode(env);
-    if(mode==="resetting" || (mode==="ready" && await isRetired(env,"fact",key+"\\u0000"+value)))
+    if(mode==="resetting" || (mode==="ready" && await isRetired(env,"fact",key+String.fromCharCode(0)+value)))
       return J({ok:true,ignored:"pre_reset_cached_fact"});
     await env.DB.prepare("INSERT INTO memory_facts (key,value,updated_at) VALUES (?,?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP")
      .bind(key,value).run();
