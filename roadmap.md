@@ -6,3 +6,4 @@
 - [ ] Connect conversational AI and contextual local protocols.
 - [ ] Implement weather, directions, ambient audio, and diagnostics.
 - [ ] Add home-screen installation support and verify the main flows.
+- [ ] Fix the reported BACY-10 code errors and verify a natural, consistent spoken voice.

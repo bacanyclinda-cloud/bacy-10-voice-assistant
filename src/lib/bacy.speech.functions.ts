@@ -37,8 +37,10 @@ export const speakBacy = createServerFn({ method: "POST" })
           response_format: "mp3",
           instructions:
             "Speak the supplied words exactly as BACY-10, a private British gentleman's assistant. " +
-            "Use natural modern British English pronunciation, poised and warm, with gentle authority. " +
-            "Deep masculine timbre, measured rhythm, restrained expression, not mechanical. " +
+            "Use a consistent, natural, unmistakably modern British English accent. " +
+            "Sound genuinely human: warm, calm, close and conversational, with a rich masculine tone, " +
+            "natural breathing, subtle expression and easy changes of rhythm. " +
+            "Be poised and quietly confident, with gentle authority; never robotic, flat or theatrical. " +
             "Do not add or remove words.",
         }),
         signal: AbortSignal.timeout(25000),

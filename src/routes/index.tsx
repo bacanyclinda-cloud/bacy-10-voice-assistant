@@ -11,6 +11,10 @@ export const Route = createFileRoute("/")({
     meta: [
       { title: "BACY-10 — Personal voice intelligence" },
       { name: "description", content: "BACY-10. A private voice-first British assistant." },
+      { property: "og:title", content: "BACY-10 — Personal voice intelligence" },
+      { property: "og:description", content: "A private voice-first British assistant, ready at your service." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { name: "theme-color", content: "#050608" },
     ],
   }),
@@ -131,7 +135,7 @@ function BacyVoice() {
           if (mounted.current) setPhase("idle");
         }
       };
-      setVoiceLabel("OpenAI · Onyx");
+      setVoiceLabel("Natural British voice");
       setPhase("speaking");
       source.start();
     } catch (err) {
@@ -151,18 +155,18 @@ function BacyVoice() {
     setReply("");
     setError("");
     setPhase("thinking");
-    const next: HistoryMessage[] = [...history.current, { role: "user", content }].slice(-12);
+    const next: HistoryMessage[] = [...history.current, { role: "user" as const, content }].slice(-12);
     try {
       // Only real responses returned by the configured Lovable AI gateway are spoken.
       const result = await ask({ data: next });
       if (!mounted.current) return;
-      if (result.error || !result.reply) {
-        setError(result.error ?? "No reply came back from the AI service. Please try again.");
+      if (!("reply" in result) || !result.reply) {
+        setError("error" in result ? result.error : "No reply came back from the AI service. Please try again.");
         setPhase("error");
         return;
       }
       const answer = result.reply.trim();
-      history.current = [...next, { role: "assistant", content: answer }].slice(-12);
+      history.current = [...next, { role: "assistant" as const, content: answer }].slice(-12);
       setReply(answer);
       say(answer);
     } catch {
@@ -341,7 +345,7 @@ function BacyVoice() {
   function testSpeaker() {
     // Explicit real-AI speaker test, not a fictional assistant reply.
     unlockAudio();
-    const testLine = "Good day, sir. This is BACY-10. Your AI voice is ready.";
+    const testLine = "Good day, sir. This is BACY-10. I'm right here, ready to help.";
     setError("");
     setReply(testLine);
     void say(testLine);
@@ -384,6 +388,7 @@ function BacyVoice() {
             phase === "thinking" ? heard :
             reply || (firstTap.current && heard ? heard : "")}</p>}
         {!textMode && <p className="voice-instruction">{instruction}</p>}
+        {!textMode && <button className="voice-text-fallback voice-hear-button" type="button" onClick={testSpeaker}>Hear BACY-10</button>}
         {textMode && <form className="voice-text-form" onSubmit={submitTyped}>
           <label className="voice-sr-only" htmlFor="voice-prompt">Message to BACY-10</label>
           <input id="voice-prompt" value={draft} onChange={(event) => setDraft(event.target.value)}
@@ -393,7 +398,6 @@ function BacyVoice() {
         </form>}
         {(phase === "error" || !speechAvailable) && !textMode &&
           <div className="voice-recovery">
-            <button className="voice-text-fallback" type="button" onClick={testSpeaker}>Test speaker</button>
             <button className="voice-text-fallback" type="button" onClick={() => setTextMode(true)}>Type instead</button>
           </div>}
       </section>

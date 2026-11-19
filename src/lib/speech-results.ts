@@ -17,7 +17,7 @@ export function readSpeechResults(results: ArrayLike<BrowserSpeechResult>): {
   for (let i = 0; i < results.length; i += 1) {
     const item = results[i];
     const phrase = item?.[0]?.transcript?.trim();
-    if (!phrase) continue;
+    if (!item || !phrase) continue;
     (item.isFinal ? final : interim).push(phrase);
   }
   const finalText = final.join(" ").trim();

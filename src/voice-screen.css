@@ -20,6 +20,7 @@ body{color:#eef2f6;font-family:Inter,ui-sans-serif,-apple-system,system-ui,"Sego
 .voice-instruction{font-family:ui-monospace,"SFMono-Regular",Consolas,monospace;margin:15px 0 0;font-size:10px;line-height:1.6;letter-spacing:.12em;color:#72818b}
 .voice-error{max-width:min(600px,96%);font-size:13px;line-height:1.7;color:#e5c7c4;margin:17px 0 0;pointer-events:auto;user-select:text}
 .voice-text-fallback{pointer-events:auto;border:none;background:transparent;color:#dae3eb;font-size:11px;letter-spacing:.13em;text-decoration:underline;text-underline-offset:6px;cursor:pointer;margin-top:20px;padding:12px}
+.voice-hear-button{margin-top:10px;min-height:44px}
 .voice-text-form{pointer-events:auto;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;width:min(560px,100%);margin-top:20px}
 .voice-text-form input{background:rgba(23,30,41,.91);border:1px solid #41505e;color:#f4f6f8;padding:14px 16px;flex:1;min-width:180px;max-width:100%;border-radius:7px;font-size:15px;outline:0}
 .voice-text-form input:focus{border-color:#8faab9}
