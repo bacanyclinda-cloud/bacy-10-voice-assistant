@@ -220,8 +220,6 @@ def test_provider_settings_navigation():
 """,encoding='utf-8')
  once(mobile/'pubspec.yaml','version: 3.5.0+40','version: 3.6.0+41')
  for file,old in [
-     (root/'agent/tests/test_built_in_owner_directive.py',"assert 'version: 3.5.0+40' in pubspec"),
-     (root/'agent/tests/test_behavior_restore.py',"assert 'version: 3.5.0+40' in (ROOT/'mobile/pubspec.yaml').read_text()"),
      (root/'agent/tests/test_owner_provider_settings.py',"assert 'version: 3.5.0+40' in (ROOT/'mobile/pubspec.yaml').read_text()"),
  ]:
   once(file,old,old.replace('3.5.0+40','3.6.0+41'))
