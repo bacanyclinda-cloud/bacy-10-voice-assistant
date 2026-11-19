@@ -7,7 +7,6 @@ Cloudflare pairing and cloud memories remain unchanged.
 from pathlib import Path
 
 PROVIDER_DART = r'''
-import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
@@ -423,6 +422,12 @@ def apply(root:Path)->None:
     once(pyproject,'"livekit-agents[google,images]>=1.6.9",',
          '"livekit-agents[google,images,mcp]>=1.6.9",')
     once(mobile/'pubspec.yaml',"version: 3.4.0+39","version: 3.5.0+40")
+    once(root/'agent/tests/test_built_in_owner_directive.py',
+         "assert 'version: 3.4.0+39' in pubspec",
+         "assert 'version: 3.5.0+40' in pubspec")
+    once(root/'agent/tests/test_behavior_restore.py',
+         "assert 'version: 3.4.0+39' in (ROOT/'mobile/pubspec.yaml').read_text()",
+         "assert 'version: 3.5.0+40' in (ROOT/'mobile/pubspec.yaml').read_text()")
 
     (root/'agent/tests/test_owner_provider_settings.py').write_text(
         """from pathlib import Path
