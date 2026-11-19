@@ -45,6 +45,64 @@ export default {async fetch(req,env){
   }
   if(!pathname.startsWith("/memory"))return J({error:"Not found"},404);
   if(!(await authorized(req,env)))return J({error:"Unauthorized"},401);
+  if(req.method==="POST"&&pathname==="/memory/reset-owner"){
+    // This operation can only be called with the owner's pairing-code bearer
+    // and explicit typed confirmation. Never expose an anonymous reset URL.
+    const x=await body(req);
+    if(x.confirm!=="RESET MY BACY-10 MEMORY")return J({error:"Confirmation required"},400);
+    const raw=x.facts;
+    if(!raw||typeof raw!=="object"||Array.isArray(raw))return J({error:"Missing replacement preferences"},400);
+    const allowed=new Set(["owner_behavior_preferences","owner_workflow_preferences","owner_voice_style"]);
+    const entries=Object.entries(raw);
+    if(entries.length!==3 || entries.some(([k,v])=>!allowed.has(k) ||
+       typeof v!=="string" || v.length<30 || v.length>1300 || secretLike(v)))
+       return J({error:"Invalid replacement preferences"},400);
+    const oldMode=await resetMode(env);
+    try{
+      // Stop any pre-reset phone queues from writing during this transition.
+      await env.DB.prepare(
+        "INSERT INTO memory_reset_control(key,value) VALUES('mode','resetting') "+
+        "ON CONFLICT(key) DO UPDATE SET value='resetting'").run();
+      const sessions=await env.DB.prepare("SELECT DISTINCT session_id FROM memory_turns").all();
+      const priorFacts=await env.DB.prepare("SELECT key,value FROM memory_facts").all();
+      const turnCount=await env.DB.prepare("SELECT COUNT(*) AS n FROM memory_turns").first();
+      const oldPairs=[];
+      for(const r of sessions.results||[])
+        oldPairs.push(["session",await sha256(String(r.session_id??""))]);
+      for(const r of priorFacts.results||[])
+        oldPairs.push(["fact",await sha256(String(r.key)+String.fromCharCode(0)+String(r.value))]);
+      // Store no old conversation text or old personal facts, only hashes to
+      // prevent replay by other offline copies of the app.
+      for(let i=0;i<oldPairs.length;i+=20){
+        const batch=oldPairs.slice(i,i+20).map(([kind,hash])=>
+          env.DB.prepare("INSERT OR IGNORE INTO memory_reset_replay(kind,hash) VALUES (?,?)")
+            .bind(kind,hash));
+        if(batch.length)await env.DB.batch(batch);
+      }
+      const epoch="bacy-reset-"+Date.now().toString(36);
+      const statements=[
+        env.DB.prepare("DELETE FROM memory_turns"),
+        env.DB.prepare("DELETE FROM memory_facts"),
+        ...entries.map(([k,v])=>env.DB.prepare(
+          "INSERT INTO memory_facts(key,value,updated_at) VALUES (?,?,CURRENT_TIMESTAMP)")
+           .bind(k,v.trim())),
+        env.DB.prepare("INSERT INTO memory_reset_control(key,value) VALUES('epoch',?) "+
+          "ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(epoch),
+        env.DB.prepare("INSERT INTO memory_reset_control(key,value) VALUES('mode','ready') "+
+          "ON CONFLICT(key) DO UPDATE SET value='ready'")
+      ];
+      await env.DB.batch(statements);
+      return J({ok:true,reset:true,memory_epoch:epoch,
+        previous_turns_deleted:turnCount?.n||0,previous_facts_deleted:(priorFacts.results||[]).length,
+        saved_preferences:entries.map(([k])=>k)});
+    }catch(err){
+      // Recovery is possible even if the remote service briefly fails.
+      await env.DB.prepare("DELETE FROM memory_reset_control WHERE key='mode'").run().catch(()=>{});
+      if(oldMode)await env.DB.prepare(
+        "INSERT INTO memory_reset_control(key,value) VALUES('mode',?)").bind(oldMode).run().catch(()=>{});
+      return J({error:"Reset failed; check memory before retrying"},503);
+    }
+  }
   if(req.method==="GET"&&pathname==="/memory"){
     const facts=await env.DB.prepare("SELECT key,value FROM memory_facts ORDER BY updated_at DESC LIMIT 120").all();
     const turns=await env.DB.prepare("SELECT id,session_id,role,content,created_at FROM memory_turns ORDER BY created_at DESC, rowid DESC LIMIT 80").all();
