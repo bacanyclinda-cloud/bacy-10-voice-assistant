@@ -32,6 +32,8 @@ from bacy10_memory_reliability_upgrade import apply as apply_durable_memory
 from bacy10_v37_direct_source_cleanup import pre as apply_v37_pre, post as apply_v37_post
 from bacy10_v38_gemini_live_upgrade import apply as apply_v38_gemini
 from bacy10_v39_live_websocket_fix import apply as apply_v39_live_websocket
+from bacy10_v40_owner_reset_ui import apply as apply_v40_owner_reset
+from bacy10_v40_voice_prompt_cleanup import apply as apply_v40_prompt_cleanup
 from bacy10_v35_provider_settings_upgrade import apply as apply_provider_settings
 from bacy10_v36_owner_ui_upgrade import apply as apply_owner_ui
 from bacy10_v36_android_actions_upgrade import apply as apply_android_actions
@@ -635,6 +637,8 @@ def main() -> None:
     apply_v37_post(output)
     apply_v38_gemini(output)
     apply_v39_live_websocket(output)
+    apply_v40_owner_reset(output)
+    apply_v40_prompt_cleanup(output)
     configure_web(output)
     write_guide(output)
     agent_dir = output / "agent" / "src"
