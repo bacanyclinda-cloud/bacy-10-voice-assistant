@@ -13,7 +13,7 @@ jobs:
     environment: livekit-production
     timeout-minutes: 8
     env:
-      GOOGLE_API_KEY: \${{ secrets.GOOGLE_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
     steps:
       - name: Check Gemini credentials and live model availability
         run: |
@@ -37,7 +37,7 @@ jobs:
         id: models
       - name: Run tiny Gemini Live audio-output checks without printing private key
         env:
-          NEW_MODEL_LISTED: \${{ steps.models.outputs.new_model_listed }}
+          NEW_MODEL_LISTED: ${{ steps.models.outputs.new_model_listed }}
         run: |
           python -m pip -q install 'google-genai>=2.18,<3'
           python - <<'PY'
