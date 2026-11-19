@@ -27,6 +27,10 @@ def apply(root:Path):
     replace_one(test,
       "assert 'version: 3.7.0+42' in (ROOT/'mobile/pubspec.yaml').read_text()",
       "assert 'version: 3.8.0+43' in (ROOT/'mobile/pubspec.yaml').read_text()")
+    v37_test=root/'agent/tests/test_v37_direct_source.py'
+    replace_one(v37_test,
+      "assert 'version: 3.7.0+42' in (ROOT/'mobile/pubspec.yaml').read_text()",
+      "assert 'version: 3.8.0+43' in (ROOT/'mobile/pubspec.yaml').read_text()")
     (root/'agent/tests/test_v38_gemini_runtime.py').write_text(
         """from pathlib import Path
 R=Path(__file__).resolve().parents[2]
