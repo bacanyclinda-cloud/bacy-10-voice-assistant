@@ -9,6 +9,7 @@ on:
       - main
       - feature/bacy10-android-phone-personal-memory-20261118
       - feature/bacy10-built-in-owner-profile-20261118
+      - feature/bacy10-keep-formal-british-20261119
     paths:
       - .github/workflows/bacy10-livekit-complete-source.yml
       - tools/bacy10_build_livekit_package.py
@@ -107,10 +108,12 @@ jobs:
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyVoiceService.kt").is_file()
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyCompactOverlayService.kt").is_file()
           assert 'SYSTEM_ALERT_WINDOW' in manifest
-          assert 'version: 2.8.0+32' in (root/"mobile/pubspec.yaml").read_text()
+          assert 'version: 2.9.0+33' in (root/"mobile/pubspec.yaml").read_text()
           assert (root/"mobile/lib/support/bacy10_cloud_memory.dart").is_file()
           assert 'conversation_item_added' in agent
           assert 'Ordinary swear words' in agent
+          assert 'British butler persona' in agent
+          assert 'Honour Android permissions' in agent
           assert "Never generate an image, show a lesson popup" in agent
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyWakeListener.kt").is_file()
           assert "setScreenShareEnabled(true)" in mobile
