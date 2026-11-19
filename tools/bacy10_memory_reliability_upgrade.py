@@ -1,6 +1,6 @@
 """BACY-10 v3.1: private cloud fact recovery and reliable offline sync.
 
-Applied to the generated Android client after the v3.0 launcher upgrade.
+Applied to the original Android client after the v2.8 cloud memory upgrade.
 No Cloudflare/LiveKit production service is modified by this patch.
 """
 from pathlib import Path
@@ -118,9 +118,8 @@ def apply(root: Path) -> None:
       'Saved '+key+' on the phone; cloud sync is pending.';""", """    return synced ? 'Saved '+key+' in your private cloud memory. It can be restored after reinstall and re-pairing.' :
       'Saved '+key+' locally. Cloud backup is pending; do not uninstall until the cloud confirms it.';""")
 
-    once(mobile / "pubspec.yaml", "version: 3.0.0+34", "version: 3.1.0+35")
-    once(root / "agent/tests/test_quick_overlay.py",
-         "assert 'version: 3.0.0+34'", "assert 'version: 3.1.0+35'")
+    once(mobile / "pubspec.yaml", "version: 2.8.0+32", "version: 3.2.0+37")
+
 
     (root / "agent/tests/test_memory_reliability.py").write_text('''from pathlib import Path
 
