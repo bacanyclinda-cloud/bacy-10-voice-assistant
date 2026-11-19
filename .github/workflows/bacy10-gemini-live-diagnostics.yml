@@ -154,3 +154,40 @@ jobs:
             await check('gemini-3.8-live')
           asyncio.run(main())
           PY
+
+  livekit_runtime:
+    name: Check deployed agent status and latest audio errors
+    runs-on: ubuntu-latest
+    environment: livekit-production
+    timeout-minutes: 5
+    env:
+      LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+      LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+      LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+    steps:
+      - name: Install LiveKit CLI
+        run: curl -fsSL https://get.livekit.io/cli | bash
+      - name: Read deployment state and bounded logs
+        shell: bash
+        run: |
+          set -uo pipefail
+          lk project add --url "$LIVEKIT_URL" --api-key "$LIVEKIT_API_KEY" --api-secret "$LIVEKIT_API_SECRET" --default bacy10 >/dev/null 2>&1
+          echo "AGENT STATUS"
+          timeout 12s lk agent status --id CA_4rt8fujSg5pZ 2>&1 | head -c 2400 || true
+          echo
+          echo "AGENT RUNTIME LOG CHECK"
+          timeout 20s lk agent logs --id CA_4rt8fujSg5pZ > "$RUNNER_TEMP/livekit-audio.log" 2>&1 || true
+          python - <<'PY'
+          import os,re
+          path=os.path.join(os.environ['RUNNER_TEMP'],'livekit-audio.log')
+          lines=open(path,errors='replace').read().splitlines()
+          print('total_log_lines',len(lines))
+          important=[l for l in lines if re.search('error|exception|fail|disconnect|1007|1008|1011|gemini|realtime|audio|session|room|worker|job|timeout',l,re.I)]
+          print('filtered_log_lines',len(important))
+          for line in important[-65:]:
+            line=re.sub('AIza[0-9A-Za-z_-]{15,}', '[KEY_REDACTED]',line)
+            line=re.sub('(?i)(api_key|secret|token)[=: ]+[^ ]{16,}', r'\\1=[REDACTED]',line)
+            print(line[:350])
+          PY
+          echo "ANALYTICS COMMANDS"
+          timeout 8s lk analytics session --help 2>&1 | head -c 1500 || true
