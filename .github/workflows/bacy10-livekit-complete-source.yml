@@ -25,6 +25,8 @@ on:
       - tools/bacy10_v20_kinetic_sculpture_upgrade.py
       - tools/bacy10_v21_hands_free_upgrade.py
       - tools/bacy10_v25_voice_stability_upgrade.py
+      - tools/bacy10_v26_background_voice_upgrade.py
+      - tools/bacy10_v27_compact_overlay_upgrade.py
       - config/bacy10-owner-profile.json
       - BACY10-LIVEKIT-DOWNLOAD.md
 
@@ -99,6 +101,10 @@ jobs:
           assert "RESTORE VOICE CONNECTION" in (root/"mobile/lib/screens/welcome_screen.dart").read_text(), "New installs must have one-time secure connection recovery"
           assert 'preemptive_generation={"enabled": False}' in agent
           assert "RECONNECT VOICE" in (root/"mobile/lib/screens/agent_screen.dart").read_text()
+          assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyVoiceService.kt").is_file()
+          assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyCompactOverlayService.kt").is_file()
+          assert 'SYSTEM_ALERT_WINDOW' in manifest
+          assert 'version: 2.7.0+31' in (root/"mobile/pubspec.yaml").read_text()
           assert "Never generate an image, show a lesson popup" in agent
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyWakeListener.kt").is_file()
           assert "setScreenShareEnabled(true)" in mobile
@@ -143,7 +149,7 @@ jobs:
         run: uv run playwright install --with-deps chromium
       - name: Run offline agent and real browser tests
         working-directory: source/agent
-        run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_quick_search.py tests/test_image_provider.py tests/test_voice_stability.py tests/test_browser.py
+        run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_quick_search.py tests/test_image_provider.py tests/test_voice_stability.py tests/test_background_voice.py tests/test_floating_capsule.py tests/test_browser.py
       # The upstream tests/test_agent.py evaluates live LLM responses using a
       # real LiveKit inference API key. Run it ONLY in your configured environment;
       # no fabricated keys are supplied to CI.
