@@ -109,7 +109,7 @@ def apply(root: Path) -> None:
             // Audio reactive bars: owner blue, assistant violet.
             val waveformX = w-140*d
             for (i in 0..4) {
-                val phase = t*(if (speaking) 11 else 2.3)+i*.9
+                val phase = t*(if (speaking) 11.0 else 2.3)+i*.9
                 val height = (4 + (if (speaking) 12 else 3) *
                     (.5+.5*sin(phase))).toFloat()*d
                 paint.color = if (currentState == "AI SPEAKING") violet else cyan
