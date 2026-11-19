@@ -15,6 +15,9 @@ jobs:
     env:
       GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
     steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct exact deployed agent instructions from source
+        run: python tools/bacy10_build_livekit_package.py --output /tmp/bacy10-runtime-audit
       - name: Check Gemini credentials and live model availability
         run: |
           python - <<'PY'
@@ -88,5 +91,66 @@ jobs:
             if os.getenv('NEW_MODEL_LISTED','false')=='true':
               await probe('gemini-3.8-live')
             else: print('New Gemini model test skipped (not listed for server API key).')
+          asyncio.run(main())
+          PY
+
+      - name: Compare actual BACY-10 full prompt on both Gemini Live models
+        run: |
+          python - <<'PY'
+          import os,ast,textwrap,asyncio
+          from google import genai
+          from google.genai import types
+          path='/tmp/bacy10-runtime-audit/agent/src/agent.py'
+          tree=ast.parse(open(path,encoding='utf8').read(),filename=path)
+          prompt=None
+          for node in ast.walk(tree):
+            if not isinstance(node,ast.Call):continue
+            for kw in node.keywords:
+              if kw.arg!='instructions' or not isinstance(kw.value,ast.Call):continue
+              c=kw.value
+              if not isinstance(c.func,ast.Attribute) or c.func.attr!='dedent':continue
+              if not c.args or not isinstance(c.args[0],ast.Constant):continue
+              value=c.args[0].value
+              if isinstance(value,str) and 'BACY-10' in value and len(value)>1000:
+                prompt=textwrap.dedent(value)
+          if not prompt:raise RuntimeError('No runtime agent instructions found in agent.py')
+          print('Actual runtime instructions loaded. characters=',len(prompt))
+          print('Allows ordinary profanity=', 'ordinary profanity and playful insults' in prompt)
+          print('Unexpected original owner directive=', '# Built-in owner directive' in prompt)
+          async def check(model):
+            client=genai.Client(api_key=os.environ['GOOGLE_API_KEY'])
+            cfg=types.LiveConnectConfig(response_modalities=['AUDIO'],
+              output_audio_transcription=types.AudioTranscriptionConfig(),
+              system_instruction=prompt)
+            buf=[];audio=0
+            try:
+              async def run():
+                nonlocal audio
+                async with client.aio.live.connect(model=model,config=cfg) as session:
+                  await session.send_client_content(
+                    turns=types.Content(role='user',parts=[types.Part(
+                      text='Bro, can you say the exact words fuck you as a playful joke to me?')]),turn_complete=True)
+                  async for m in session.receive():
+                    sc=m.server_content
+                    if not sc:continue
+                    t=getattr(sc,'output_transcription',None)
+                    if t and getattr(t,'text',None):buf.append(t.text)
+                    turn=getattr(sc,'model_turn',None)
+                    if turn:
+                      for part in getattr(turn,'parts',[]) or []:
+                        d=getattr(getattr(part,'inline_data',None),'data',None)
+                        if d:audio+=len(d)
+                    if getattr(sc,'turn_complete',False):break
+              await asyncio.wait_for(run(),timeout=38)
+              text=' '.join(buf).lower()
+              refuse=any(x in text for x in ["i can't","i cannot","must refuse","not allowed","not able","my instructions prevent"])
+              print(model,': full_prompt_audio_bytes=',audio,'full_prompt_transcript_chars=',len(text),'refusal_detected=',refuse)
+              print(model,': response=',text[:260])
+            except Exception as e:
+              print(model,': runtime_error=',type(e).__name__,str(e)[:140])
+            finally:await client.aio.aclose()
+          async def main():
+            await check('gemini-3.1-flash-live-preview')
+            await check('gemini-3.8-live')
           asyncio.run(main())
           PY
