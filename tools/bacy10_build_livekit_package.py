@@ -29,8 +29,7 @@ from bacy10_v26_background_voice_upgrade import apply as apply_background_voice
 from bacy10_v27_compact_overlay_upgrade import apply as apply_compact_overlay
 from bacy10_v28_cloud_memory_upgrade import apply as apply_cloud_memory
 from bacy10_memory_reliability_upgrade import apply as apply_durable_memory
-from bacy10_v33_owner_directive_upgrade import apply as apply_owner_directive
-from bacy10_v34_behavior_restore import apply as apply_behavior_restore
+from bacy10_v37_direct_source_cleanup import pre as apply_v37_pre, post as apply_v37_post
 from bacy10_v35_provider_settings_upgrade import apply as apply_provider_settings
 from bacy10_v36_owner_ui_upgrade import apply as apply_owner_ui
 from bacy10_v36_android_actions_upgrade import apply as apply_android_actions
@@ -626,12 +625,12 @@ def main() -> None:
     apply_compact_overlay(output)
     apply_cloud_memory(output)
     apply_durable_memory(output)
-    apply_owner_directive(output)
-    apply_behavior_restore(output)
+    apply_v37_pre(output)
     apply_provider_settings(output)
     apply_owner_ui(output)
     apply_android_actions(output)
     apply_mcp_slots(output)
+    apply_v37_post(output)
     configure_web(output)
     write_guide(output)
     agent_dir = output / "agent" / "src"
