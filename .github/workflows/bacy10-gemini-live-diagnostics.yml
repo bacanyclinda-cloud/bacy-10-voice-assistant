@@ -191,3 +191,66 @@ jobs:
           PY
           echo "ANALYTICS COMMANDS"
           timeout 8s lk analytics session --help 2>&1 | head -c 1500 || true
+
+  google_plugin_handshake:
+    name: Probe exact LiveKit Google plugin WebSocket versions
+    runs-on: ubuntu-latest
+    environment: livekit-production
+    timeout-minutes: 8
+    env:
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+      - name: Generate exact production voice-agent package and pinned dependencies
+        run: python tools/bacy10_build_livekit_package.py --output build/livekit
+      - name: Resolve dependencies and run Google plugin WebSocket handshake
+        working-directory: build/livekit/agent
+        run: |
+          uv sync --python 3.12 --locked
+          uv run python - <<'PY'
+          import os,asyncio
+          from livekit.plugins import google
+          from google.genai import types
+          key=os.getenv('GOOGLE_API_KEY')
+          if not key: raise RuntimeError('Google secret missing')
+          async def one(api_version):
+            kw=dict(model='gemini-3.8-live',voice='Enceladus',language='en-GB',api_key=key,
+              tool_response_scheduling=types.FunctionResponseScheduling.WHEN_IDLE)
+            if api_version:kw['api_version']=api_version
+            model=google.beta.realtime.RealtimeModel(**kw)
+            session=model.session()
+            started=False
+            error=None
+            try:
+              for i in range(15):
+                await asyncio.sleep(0.65)
+                if getattr(session,'_active_session',None) is not None:
+                  started=True
+                  break
+                if getattr(session,'_session_error',None) is not None:
+                  error=session._session_error
+                  break
+                task=getattr(session,'_main_atask',None)
+                if task and task.done():
+                  try:task.result()
+                  except Exception as e:error=e
+                  break
+              print('LiveKit google plugin handshake:',api_version or 'default',
+                'opened=',started,
+                'error_type=',type(error).__name__ if error else 'none',
+                'error=',str(error)[:140] if error else 'none')
+            finally:
+              try:await asyncio.wait_for(session.aclose(),timeout=3)
+              except Exception:pass
+              try:await model.aclose()
+              except Exception:pass
+          async def main():
+            for ver in (None,'v1beta','v1alpha'):
+              try:await one(ver)
+              except Exception as e:print('LiveKit google plugin construction:',ver or 'default','error=',type(e).__name__,str(e)[:100])
+          asyncio.run(main())
+          PY
