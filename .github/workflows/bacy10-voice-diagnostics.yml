@@ -1,0 +1,44 @@
+name: BACY10 LiveKit audio troubleshooting
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - fix/bacy10-v38-gemini-live-runtime-20261119
+    paths:
+      - .github/workflows/bacy10-voice-diagnostics.yml
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    environment: livekit-production
+    timeout-minutes: 6
+    env:
+      LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+      LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+      LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+    steps:
+      - name: Install LiveKit CLI
+        run: curl -fsSL https://get.livekit.io/cli | bash
+      - name: Read agent status and recent runtime logs (no secret values)
+        shell: bash
+        run: |
+          set -uo pipefail
+          lk project add --url "$LIVEKIT_URL" --api-key "$LIVEKIT_API_KEY" --api-secret "$LIVEKIT_API_SECRET" --default bacy10 >/dev/null 2>&1
+          echo "=== LK agent status ==="
+          timeout 18s lk agent status --id CA_4rt8fujSg5pZ 2>&1 | head -c 6500 || true
+          echo
+          echo "=== Recent LiveKit agent runtime log lines ==="
+          timeout 24s lk agent logs --id CA_4rt8fujSg5pZ > "$RUNNER_TEMP/agent-runtime.txt" 2>&1 || true
+          python - <<'PY'
+          import os,re
+          f=os.path.join(os.environ['RUNNER_TEMP'],'agent-runtime.txt')
+          lines=open(f,errors='replace').read().splitlines() if os.path.exists(f) else []
+          print("runtime_lines=",len(lines))
+          matching=[s for s in lines if re.search('error|exception|realtime|gemini|google|audio|disconnect|timeout|fail|unsupported|session|started|job|worker|connect|token|1007|1008|1011',s,re.I)]
+          print('matched_lines=',len(matching))
+          for l in matching[-85:]:
+            l=re.sub(r'AIza[0-9A-Za-z_-]{15,}', '[API_KEY_REDACTED]', l)
+            l=re.sub(r'(?i)(token|secret|api_key)(["\':= ]+)[^ ,;}"\']{12,}',r'\1\2[REDACTED]',l)
+            print(l[:460])
+          PY
+          echo "=== Analytics CLI available commands ==="
+          timeout 12s lk analytics session --help 2>&1 | head -c 4000 || true
