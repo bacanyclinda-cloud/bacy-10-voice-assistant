@@ -24,6 +24,7 @@ on:
       - tools/bacy10_v19_stability_upgrade.py
       - tools/bacy10_v20_kinetic_sculpture_upgrade.py
       - tools/bacy10_v21_hands_free_upgrade.py
+      - tools/bacy10_v25_voice_stability_upgrade.py
       - config/bacy10-owner-profile.json
       - BACY10-LIVEKIT-DOWNLOAD.md
 
@@ -96,6 +97,9 @@ jobs:
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyWakeService.kt").is_file()
           assert "bacy10_pairing_code" not in (root/"mobile/lib/screens/welcome_screen.dart").read_text()
           assert "RESTORE VOICE CONNECTION" in (root/"mobile/lib/screens/welcome_screen.dart").read_text(), "New installs must have one-time secure connection recovery"
+          assert 'preemptive_generation={"enabled": False}' in agent
+          assert "RECONNECT VOICE" in (root/"mobile/lib/screens/agent_screen.dart").read_text()
+          assert "Never generate an image, show a lesson popup" in agent
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyWakeListener.kt").is_file()
           assert "setScreenShareEnabled(true)" in mobile
           assert "PhoneTools" in agent
@@ -139,7 +143,7 @@ jobs:
         run: uv run playwright install --with-deps chromium
       - name: Run offline agent and real browser tests
         working-directory: source/agent
-        run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_quick_search.py tests/test_image_provider.py tests/test_browser.py
+        run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_quick_search.py tests/test_image_provider.py tests/test_voice_stability.py tests/test_browser.py
       # The upstream tests/test_agent.py evaluates live LLM responses using a
       # real LiveKit inference API key. Run it ONLY in your configured environment;
       # no fabricated keys are supplied to CI.
