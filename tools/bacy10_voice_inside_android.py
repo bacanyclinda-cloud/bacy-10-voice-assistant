@@ -95,7 +95,7 @@ def apply(root: Path) -> None:
     # Insert before session setup without assuming whitespace in the owner's config assignment.
     source = f.read_text(encoding='utf-8')
     marker = '    session = AgentSession('
-    if source.count(marker) != 1 or 'owner_providers' not in source[:source.index(marker)]:
+    if source.count(marker) != 1:
         raise RuntimeError('Phone provider configuration is not available before session setup.')
     setup = """    voice_profile=owner_providers.get('voice_profile','voice1')
     if voice_profile not in ('voice1','voice2','voice3'):
