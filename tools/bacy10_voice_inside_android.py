@@ -115,14 +115,8 @@ def apply(root: Path) -> None:
     source = source.replace(marker, setup + marker, 1)
     f.write_text(source, encoding='utf-8')
     replace(f,'    session = AgentSession(\n','    session = AgentSession(\n        tts=voice3_tts,\n')
-    source = f.read_text(encoding='utf-8')
-    candidates = [line for line in source.splitlines()
-                  if line.lstrip().startswith('assistant = Assistant(')]
-    if len(candidates) != 1 or not candidates[0].rstrip().endswith(')'):
-        raise RuntimeError('Assistant construction mismatch: '+repr([line.strip()[:180] for line in source.splitlines() if 'Assistant(' in line])+' count='+str(len(candidates)))
-    original = candidates[0]
-    changed = original.rstrip()[:-1] + ', voice_profile=voice_profile, room=ctx.room)'
-    f.write_text(source.replace(original, changed, 1), encoding='utf-8')
+    replace(f, 'agent=Assistant(browser),',
+            'agent=Assistant(browser, voice_profile=voice_profile, room=ctx.room),')
     replace(root/'agent/pyproject.toml',
         '    "livekit-plugins-ai-coustics~=0.2",',
         '    "livekit-plugins-ai-coustics~=0.2",\n    "livekit-plugins-elevenlabs>=1.8.0,<2",')
