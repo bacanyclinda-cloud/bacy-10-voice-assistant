@@ -7,6 +7,7 @@ on:
       - feature/bacy10-livekit-complete-source-20261118
       - fix/bacy10-connected-mobile-cloud-20261118
       - main
+      - feature/bacy10-v40-android-three-voices-20261120
       - feature/bacy10-android-phone-personal-memory-20261118
       - feature/bacy10-built-in-owner-profile-20261118
       - feature/bacy10-keep-formal-british-20261119
@@ -22,6 +23,7 @@ on:
     paths:
       - .github/workflows/bacy10-livekit-complete-source.yml
       - tools/bacy10_build_livekit_package.py
+      - tools/bacy10_voice_inside_android.py
       - tools/bacy10_phone_memory_upgrade.py
       - tools/bacy10_android_device_controls.py
       - tools/bacy10_center_orb.py
