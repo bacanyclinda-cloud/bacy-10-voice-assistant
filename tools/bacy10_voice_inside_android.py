@@ -89,7 +89,7 @@ def apply(root: Path) -> None:
               '                *self.phone_tools.tools,\n                *self.voice_tools.tools,')
     # In the original profile, preserve the unchanged model, voice and instructions.
     replace(f,'                voice="Enceladus",',
-              '                voice="Puck" if voice_profile == "voice2" else "Enceladus",\n                **({"modalities":[genai_types.Modality.TEXT]} if voice_profile == "voice3" else {}),')
+              '                voice="Enceladus" if voice_profile != "voice2" else "Puck",\n                **({"modalities":[genai_types.Modality.TEXT]} if voice_profile == "voice3" else {}),')
     replace(f,'                        # Android phone actions and private memory\n',
               PERSONAL_CHOICE+'\n                        # Android phone actions and private memory\n')
     # Insert before session setup without assuming whitespace in the owner's config assignment.
