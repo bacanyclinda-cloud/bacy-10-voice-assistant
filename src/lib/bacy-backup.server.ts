@@ -27,7 +27,7 @@ export async function speakVoiceTwo(text: string, env: Env): Promise<TtsResult> 
   const viaGateway = !direct;
   const res = await fetch(viaGateway ? "https://ai.gateway.lovable.dev/v1/audio/speech" : "https://api.openai.com/v1/audio/speech", {
     method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", ...(viaGateway ? { "Lovable-API-Key": key, "X-Lovable-AIG-SDK": "vercel-ai-sdk" } : {}) },
     body: JSON.stringify({
       model: viaGateway ? "openai/gpt-4o-mini-tts" : "gpt-4o-mini-tts",
       input: text,
@@ -44,7 +44,7 @@ export async function speakVoiceTwo(text: string, env: Env): Promise<TtsResult> 
 export async function speakVoiceThree(text: string, env: Env): Promise<TtsResult> {
   const key = env["ELEVENLABS_API_KEY"];
   if (!key) return { error: "ElevenLabs needs a key. Add ELEVENLABS_API_KEY in the project secrets.", code: "needs_key" };
-  const voiceId = env["ELEVENLABS_VOICE_ID"] || "JBFqnCBsd6RMkjVDRZzb"; // public default: George (British)
+  const voiceId = env["ELEVENLABS_VOICE_ID"] || "22N9cF8z0o7y23njdyaY"; // Florence: British female, gentle and natural
   if (!/^[A-Za-z0-9]{10,40}$/.test(voiceId)) return { error: "ELEVENLABS_VOICE_ID is not a valid voice ID.", code: "bad_voice" };
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
     method: "POST",
