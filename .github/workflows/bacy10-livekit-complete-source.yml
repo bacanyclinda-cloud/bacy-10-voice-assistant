@@ -7,12 +7,14 @@ on:
       - feature/bacy10-livekit-complete-source-20261118
       - fix/bacy10-connected-mobile-cloud-20261118
       - main
+      - feature/bacy10-android-three-real-voices-20261120
       - feature/bacy10-android-phone-personal-memory-20261118
     paths:
       - .github/workflows/bacy10-livekit-complete-source.yml
       - tools/bacy10_build_livekit_package.py
       - tools/bacy10_phone_memory_upgrade.py
       - tools/bacy10_gmail_tools.py
+      - tools/bacy10_voice_inside_android.py
       - BACY10-LIVEKIT-DOWNLOAD.md
 
 # Only test the newest source revision; cancel obsolete APK builds on this branch.
@@ -37,6 +39,7 @@ jobs:
         with:
           python-version: "3.12"
 
+      - uses: astral-sh/setup-uv@v6
       - name: Download pinned full tutorial and apply BACY-10 setup
         run: python tools/bacy10_build_livekit_package.py --output build/BACY10-LIVEKIT-FULL-SOURCE
 
