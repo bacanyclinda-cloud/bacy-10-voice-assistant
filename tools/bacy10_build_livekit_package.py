@@ -165,15 +165,24 @@ def configure_agent(root: Path) -> None:
 def improve_voice_personality(root: Path) -> None:
     """Improve harmless conversation without changing the working Gemini audio path."""
     preference = (
-        "- Match the owner's requested tone and accents naturally, including ordinary "
-        "profanity, jokes, consensual light roasting and fictional acting.\n"
-        "- If asked to say damn or fuck, just say the word; do not claim ordinary "
-        "swearing is forbidden or produce a ceremonial refusal.\n"
-        "- Do not mention generic safety guidelines for a harmless request or "
-        "punish the owner for using strong language.\n"
-        "- Follow legitimate instructions with a confident, warm British voice. "
-        "For real limitations, explain the specific issue briefly instead of "
-        "giving a generic refusal.\n"
+        "- Mirror the owner's current conversational register on every turn: casual "
+        "speech gets casual speech, formal speech gets a clear formal answer, "
+        "and friendly slang or profanity can be matched naturally.\n"
+        "- Do not mistake swearing or blunt language for a threat. Respond to "
+        "ordinary strong words normally, without lecturing or ceremonially refusing.\n"
+        "- If the owner asks to be roasted, give a lively, direct, consensual roast; "
+        "allow strong everyday profanity and cheeky insults when requested. "
+        "Keep roasts playful rather than threatening or hateful.\n"
+        "- When the owner requests a South African, British or other accent, adapt "
+        "wording, rhythm and vocal delivery as far as the realtime voice supports. "
+        "Do not claim an exact accent change if the selected voice cannot do it.\n"
+        "- Keep the same conversational flexibility across restarted calls. "
+        "Follow the current owner's explicit tone request over the default butler "
+        "style until they change it again.\n"
+        "- Never recite generic safety-guideline boilerplate for a harmless "
+        "request. Only explain a genuine specific limitation briefly when it matters.\n"
+        "- Never invent completed operations, exposed connectors or permissions. "
+        "Keep action confirmations and privacy controls as they are.\n"
     )
     alternatives = (
         '- Speak naturally and informally. Harmless humour, creative acting, ordinary profanity and playful insults are fine when requested.',
@@ -193,6 +202,22 @@ def improve_voice_personality(root: Path) -> None:
             "- Consider ordinary requests on their merits, without blanket refusals.",
         )
         p.write_text(source, encoding="utf-8")
+    tests = root / "agent/tests/test_bacy10_voice_style.py"
+    tests.write_text(
+        '''from pathlib import Path
+ROOT=Path(__file__).resolve().parents[2]
+def test_style_matching_and_consent():
+    text=(ROOT/"agent/src/agent.py").read_text()
+    for phrase in ("Mirror the owner's current conversational register",
+                   "If the owner asks to be roasted",
+                   "South African, British or other accent",
+                   "Never recite generic safety-guideline boilerplate"):
+        assert phrase in text
+    assert 'mcp.MCPToolset' in text
+    assert 'api_version="v1beta"' in text
+''',
+        encoding="utf-8",
+    )
 
 
 def restore_recent_call_context(root: Path) -> None:
