@@ -27,7 +27,7 @@ export async function speakVoiceTwo(text: string, env: Env): Promise<TtsResult> 
   const viaGateway = !direct;
   const res = await fetch(viaGateway ? "https://ai.gateway.lovable.dev/v1/audio/speech" : "https://api.openai.com/v1/audio/speech", {
     method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", ...(viaGateway ? { "Lovable-API-Key": key, "X-Lovable-AIG-SDK": "vercel-ai-sdk" } : {}) },
     body: JSON.stringify({
       model: viaGateway ? "openai/gpt-4o-mini-tts" : "gpt-4o-mini-tts",
       input: text,
