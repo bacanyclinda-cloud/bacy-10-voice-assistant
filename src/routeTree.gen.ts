@@ -10,33 +10,65 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicBacyConnectedServicesRouteImport } from './routes/api/public/bacy/connected-services'
+import { Route as ApiPublicBacyGmailSubjectsRouteImport } from './routes/api/public/bacy/gmail-subjects'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicBacyConnectedServicesRoute =
+  ApiPublicBacyConnectedServicesRouteImport.update({
+    id: '/api/public/bacy/connected-services',
+    path: '/api/public/bacy/connected-services',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicBacyGmailSubjectsRoute =
+  ApiPublicBacyGmailSubjectsRouteImport.update({
+    id: '/api/public/bacy/gmail-subjects',
+    path: '/api/public/bacy/gmail-subjects',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/public/bacy/connected-services': typeof ApiPublicBacyConnectedServicesRoute
+  '/api/public/bacy/gmail-subjects': typeof ApiPublicBacyGmailSubjectsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/public/bacy/connected-services': typeof ApiPublicBacyConnectedServicesRoute
+  '/api/public/bacy/gmail-subjects': typeof ApiPublicBacyGmailSubjectsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/public/bacy/connected-services': typeof ApiPublicBacyConnectedServicesRoute
+  '/api/public/bacy/gmail-subjects': typeof ApiPublicBacyGmailSubjectsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/api/public/bacy/connected-services'
+    | '/api/public/bacy/gmail-subjects'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/api/public/bacy/connected-services'
+    | '/api/public/bacy/gmail-subjects'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/public/bacy/connected-services'
+    | '/api/public/bacy/gmail-subjects'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPublicBacyConnectedServicesRoute: typeof ApiPublicBacyConnectedServicesRoute
+  ApiPublicBacyGmailSubjectsRoute: typeof ApiPublicBacyGmailSubjectsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +80,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/bacy/connected-services': {
+      id: '/api/public/bacy/connected-services'
+      path: '/api/public/bacy/connected-services'
+      fullPath: '/api/public/bacy/connected-services'
+      preLoaderRoute: typeof ApiPublicBacyConnectedServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/bacy/gmail-subjects': {
+      id: '/api/public/bacy/gmail-subjects'
+      path: '/api/public/bacy/gmail-subjects'
+      fullPath: '/api/public/bacy/gmail-subjects'
+      preLoaderRoute: typeof ApiPublicBacyGmailSubjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPublicBacyConnectedServicesRoute: ApiPublicBacyConnectedServicesRoute,
+  ApiPublicBacyGmailSubjectsRoute: ApiPublicBacyGmailSubjectsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
