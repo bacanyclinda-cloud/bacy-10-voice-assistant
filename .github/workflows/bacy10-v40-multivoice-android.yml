@@ -1,0 +1,102 @@
+name: BACY-10 v4 Multi-Voice Android Copy
+
+on:
+  push:
+    branches:
+      - feature/bacy10-android-three-real-voices-20261120
+    paths:
+      - .github/workflows/bacy10-v40-multivoice-android.yml
+      - tools/bacy10_voice_inside_android.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  prepare:
+    name: Patch working v4 release source in a separate copy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download known working v4 source
+        uses: actions/download-artifact@v4
+        with:
+          name: BACY10-LIVEKIT-FULL-SOURCE
+          run-id: 44616716504
+          github-token: ${{ github.token }}
+          path: source
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+      - name: Add optional voices to exact release source
+        run: |
+          python - <<'PY'
+          import sys,compileall
+          from pathlib import Path
+          sys.path.insert(0,"tools")
+          from bacy10_voice_inside_android import apply
+          root=Path("source")
+          for name in ["agent/src/agent.py","agent/pyproject.toml","mobile/lib/controllers/app_ctrl.dart","mobile/lib/support/bacy10_provider_settings.dart","mobile/lib/screens/agent_screen.dart"]:
+              assert (root/name).is_file(),name
+          apply(root)
+          assert compileall.compile_dir(str(root/"agent/src"),quiet=1)
+          assert "switch_bacy_voice" in (root/"agent/src/voice_tools.py").read_text()
+          print("BACY-10 voice patch applied with original package identity retained")
+          PY
+      - name: Resolve ElevenLabs LiveKit plugin
+        working-directory: source/agent
+        run: uv lock --python 3.12
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BACY10-v40-THREE-VOICES-SOURCE
+          path: source/
+          retention-days: 14
+          include-hidden-files: true
+          if-no-files-found: error
+
+  android:
+    name: Build actual Flutter Android APK
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: BACY10-v40-THREE-VOICES-SOURCE
+          path: source
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.38.2"
+          cache: true
+      - name: Install packages
+        working-directory: source/mobile
+        run: flutter pub get
+      - name: Verify Dart compilation
+        working-directory: source/mobile
+        run: flutter analyze --no-fatal-infos
+      - name: Compile debug Android APK
+        working-directory: source/mobile
+        run: flutter build apk --debug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BACY10-v40-THREE-VOICES-DEBUG-APK
+          path: source/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14
+          if-no-files-found: error
+      - name: Compile release Android APK
+        working-directory: source/mobile
+        run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BACY10-v40-THREE-VOICES-RELEASE-APK
+          path: source/mobile/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
+          if-no-files-found: error
