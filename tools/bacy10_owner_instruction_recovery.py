@@ -27,7 +27,7 @@ def apply(root: Path) -> None:
             raise RuntimeError(f"Cannot safely insert owner instructions into {relative}: guardrail anchor count={source.count(marker)}")
         if "BACY-10 owner instruction and personality recovery" in source:
             raise RuntimeError(f"Owner personality block already exists in {relative}")
-        source = source.replace(marker, PERSONALITY + "\\n" + marker, 1)
+        source = source.replace(marker, PERSONALITY + "\n" + marker, 1)
         path.write_text(source, encoding="utf-8")
     tests = root / "agent/tests/test_owner_instruction_recovery.py"
     tests.write_text("""from pathlib import Path
