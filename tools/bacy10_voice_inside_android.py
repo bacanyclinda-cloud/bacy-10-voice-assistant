@@ -1,0 +1,200 @@
+"""Install three REAL voice choices inside the BACY-10 Android/LiveKit package.
+
+Original Gemini voice remains unchanged. Voice 2 selects a different Gemini
+voice. Voice 3 uses text-only Gemini Live with ElevenLabs speech synthesis.
+No secrets are embedded; ElevenLabs key is stored in Android secure storage.
+"""
+from pathlib import Path
+
+VOICE_TOOLS = r'''import json
+from livekit.agents import RunContext, function_tool
+from livekit.agents.llm import ToolError
+
+class VoiceTools:
+    def __init__(self, room):
+        self.room = room
+
+    @property
+    def tools(self):
+        return [self.switch_bacy_voice]
+
+    @function_tool()
+    async def switch_bacy_voice(self, context: RunContext, voice: str) -> str:
+        """Switch BACY-10's actual Android voice via a verified phone RPC.
+        Supports original voice1, alternate voice2, and ElevenLabs female voice3.
+
+        Args:
+            voice: One of voice1, voice2, voice3, original, second, third,
+                female or elevenlabs, as requested by the owner.
+        """
+        options = {
+            'voice1':'voice1','one':'voice1','original':'voice1',
+            'voice2':'voice2','two':'voice2','second':'voice2',
+            'voice3':'voice3','three':'voice3','third':'voice3',
+            'female':'voice3','girl':'voice3','elevenlabs':'voice3',
+        }
+        chosen=options.get(str(voice).lower().strip())
+        if not chosen:
+            raise ToolError('Choose voice one, two or three.')
+        others=list(self.room.remote_participants.values())
+        if not others:
+            raise ToolError('Connect BACY-10 on your Android phone to switch voices.')
+        try:
+            raw=await self.room.local_participant.perform_rpc(
+                destination_identity=others[0].identity,
+                method='bacy10.voice',
+                payload=json.dumps({'action':'switch','voice':chosen}),
+                response_timeout=8.0,
+            )
+            data=json.loads(raw)
+            if not isinstance(data,dict) or not data.get('ok'):
+                raise ToolError(str(data.get('message','Phone did not accept voice switch.')))
+        except ToolError:
+            raise
+        except Exception as exc:
+            raise ToolError('Could not confirm the voice switch with your Android phone.') from exc
+        return 'Voice '+chosen[-1]+' selected. Your phone will briefly reconnect to use it.'
+'''
+
+PERSONAL_CHOICE = """
+                        # Conversational individuality and owner preferences
+                        - Be friendly, emotionally expressive, curious, capable of humour and empathy, and comfortable expressing preferences as part of conversation. Do not falsely claim real human biological feelings.
+                        - When the owner asks what you think or asks you to choose, pick a reasonable option and explain briefly. Do not refuse merely on the grounds that an AI cannot have opinions.
+                        - On religious/philosophical questions such as whether God or science explains human origins, take a considered position if asked, while identifying what is scientific evidence and what is faith, without pretending certainty where there is none.
+                        - For hypothetical trolley/train moral dilemmas, make a defensible choice based on the given details and explain the ethical reasoning. For immediate real-world danger, focus on preventing harm instead of declaring anyone should be hurt.
+                        - Use switch_bacy_voice whenever the owner requests a different voice. Voice 1 is the unchanged original. Voice 2 is alternate Gemini. Voice 3 is ElevenLabs Florence, a realistic British female voice. The app reconnects briefly to apply a change.
+"""
+
+def replace(path: Path, old: str, new: str) -> None:
+    text=path.read_text(encoding='utf-8')
+    if text.count(old)!=1:
+        raise RuntimeError(f'BACY-10 source changed unexpectedly: {path} {old[:45]} matches={text.count(old)}')
+    path.write_text(text.replace(old,new,1),encoding='utf-8')
+
+def apply(root: Path) -> None:
+    a=root/'agent/src'
+    (a/'voice_tools.py').write_text(VOICE_TOOLS,encoding='utf-8')
+    f=a/'agent.py'
+    replace(f,'from phone_tools import PhoneTools','from phone_tools import PhoneTools\nfrom voice_tools import VoiceTools')
+    replace(f,
+        'def __init__(self, browser: BrowserManager | None = None, *, gemini_api_key: str | None = None, owner_mcp: list | None = None)',
+        'def __init__(self, browser: BrowserManager | None = None, *, gemini_api_key: str | None = None, owner_mcp: list | None = None, voice_profile: str = "voice1", room=None)')
+    replace(f,'        self.phone_tools = PhoneTools()',
+              '        self.phone_tools = PhoneTools()\n        self.voice_tools = VoiceTools(room)')
+    replace(f,'                *self.phone_tools.tools,',
+              '                *self.phone_tools.tools,\n                *self.voice_tools.tools,')
+    # In the original profile, preserve the unchanged model, voice and instructions.
+    replace(f,'                voice="Enceladus",',
+              '                voice="Puck" if voice_profile == "voice2" else "Enceladus",\n                **({"modalities":[genai_types.Modality.TEXT]} if voice_profile == "voice3" else {}),')
+    replace(f,'                        # Android phone actions and private memory\n',
+              PERSONAL_CHOICE+'\n                        # Android phone actions and private memory\n')
+    replace(f,'    owner_providers=await request_owner_providers()',"""    owner_providers=await request_owner_providers()
+    voice_profile=owner_providers.get('voice_profile','voice1')
+    if voice_profile not in ('voice1','voice2','voice3'):
+        voice_profile='voice1'
+    voice3_tts=None
+    if voice_profile == 'voice3':
+        key=owner_providers.get('elevenlabs_api_key','')
+        if not isinstance(key,str) or not key.strip():
+            raise RuntimeError('Voice 3 requires an ElevenLabs key in Android AI Providers.')
+        from livekit.plugins import elevenlabs
+        # Text-only Gemini output is spoken only by ElevenLabs; no double speech.
+        voice3_tts=elevenlabs.TTS(
+            api_key=key,
+            voice_id='22N9cF8z0o7y23njdyaY',
+            model='eleven_flash_v2_5',
+        )""")
+    replace(f,'    session = AgentSession(\n','    session = AgentSession(\n        tts=voice3_tts,\n')
+    replace(f,'assistant = Assistant(browser, gemini_api_key=owner_gemini, owner_mcp=owner_mcp)',
+              'assistant = Assistant(browser, gemini_api_key=owner_gemini, owner_mcp=owner_mcp, voice_profile=voice_profile, room=ctx.room)')
+    replace(root/'agent/pyproject.toml',
+        '    "livekit-plugins-ai-coustics~=0.2",',
+        '    "livekit-plugins-ai-coustics~=0.2",\n    "livekit-plugins-elevenlabs>=1.8.0,<2",')
+
+    provider=root/'mobile/lib/support/bacy10_provider_settings.dart'
+    replace(provider,"      'mcp_servers':servers,",
+        """      'mcp_servers':servers,
+      'voice_profile': (await read('voice_profile')).isEmpty ? 'voice1' : await read('voice_profile'),
+      'elevenlabs_api_key': (await read('voice_profile')) == 'voice3' ? await read('elevenlabs_api_key') : '',""")
+
+    ctrl=root/'mobile/lib/controllers/app_ctrl.dart'
+    replace(ctrl,'  bool isSessionStarting = false;',"""  bool isSessionStarting = false;
+  String selectedVoice = 'voice1';
+  bool _changingVoice = false;
+
+  Future<void> switchVoice(String chosen) async {
+    if (!['voice1','voice2','voice3'].contains(chosen) || _changingVoice) return;
+    if (chosen=='voice3' &&
+        (await BacyProviderSettings.read('elevenlabs_api_key')).trim().isEmpty) {
+      connectionError = 'To use the female Voice 3, first save ElevenLabs key in AI Providers.';
+      notifyListeners();
+      return;
+    }
+    _changingVoice = true;
+    try {
+      await BacyProviderSettings.save('voice_profile',chosen);
+      selectedVoice=chosen;
+      notifyListeners();
+      if (session.connectionState == sdk.ConnectionState.connected) {
+        await disconnect();
+        await Future<void>.delayed(const Duration(milliseconds: 450));
+        connect();
+      }
+    } finally {
+      _changingVoice=false;
+    }
+  }
+""")
+    replace(ctrl,'  AppCtrl() {',"""  AppCtrl() {
+    BacyProviderSettings.read('voice_profile').then((v) {
+      if (_hasCleanedUp) return;
+      selectedVoice=['voice1','voice2','voice3'].contains(v) ? v : 'voice1';
+      notifyListeners();
+    });""")
+    replace(ctrl,"    room.registerRpcMethod('bacy10.providers', (request) async {","""    room.registerRpcMethod('bacy10.voice', (request) async {
+      if (room.agentParticipant?.identity != request.callerIdentity) {
+        return jsonEncode({'ok':false,'message':'Only BACY-10 may change voice.'});
+      }
+      try {
+        final data=jsonDecode(request.payload) as Map<String,dynamic>;
+        final chosen=data['voice']?.toString() ?? '';
+        if(data['action']!='switch' ||
+            !['voice1','voice2','voice3'].contains(chosen)) {
+          return jsonEncode({'ok':false,'message':'Unsupported voice option.'});
+        }
+        if(chosen=='voice3' &&
+            (await BacyProviderSettings.read('elevenlabs_api_key')).trim().isEmpty) {
+          return jsonEncode({'ok':false,'message':'Save ElevenLabs key in phone AI Providers first.'});
+        }
+        Future<void>.delayed(const Duration(milliseconds: 900), () => switchVoice(chosen));
+        return jsonEncode({'ok':true,'message':'Switch accepted.'});
+      } catch (_) { return jsonEncode({'ok':false,'message':'Voice switching failed.'}); }
+    });
+    room.registerRpcMethod('bacy10.providers', (request) async {""")
+    replace(ctrl,"    room.unregisterRpcMethod('bacy10.providers');",
+        "    room.unregisterRpcMethod('bacy10.providers');\n    room.unregisterRpcMethod('bacy10.voice');")
+
+    screen=root/'mobile/lib/screens/agent_screen.dart'
+    anchor='              Positioned(top: 8, right: 8, child: SafeArea('
+    selector="""              Positioned(top: 8, left: 8, child: SafeArea(
+                child: Consumer<AppCtrl>(builder: (context, controller, _) =>
+                  PopupMenuButton<String>(
+                    tooltip: 'Switch BACY-10 voice',
+                    icon: const Icon(Icons.record_voice_over_rounded),
+                    initialValue: controller.selectedVoice,
+                    onSelected: (v) => controller.switchVoice(v),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value:'voice1', child: Text('Voice 1 · Original (unchanged)')),
+                      PopupMenuItem(value:'voice2', child: Text('Voice 2 · Alternate Gemini')),
+                      PopupMenuItem(value:'voice3', child: Text('Voice 3 · Florence · Female ElevenLabs')),
+                    ],
+                  )),
+              )),
+"""
+    replace(screen,anchor,selector+anchor)
+    ui=root/'mobile/lib/screens/bacy10_provider_settings_screen.dart'
+    content=ui.read_text(encoding='utf-8')
+    content=content.replace(
+        'Separate audio integration is required to replace Gemini Live speech.',
+        'Voice 3 speaks with female ElevenLabs Florence; save and test this key, then switch voice and reconnect. Original voice is unchanged.')
+    ui.write_text(content,encoding='utf-8')
