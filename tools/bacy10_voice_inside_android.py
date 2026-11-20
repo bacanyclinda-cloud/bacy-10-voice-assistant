@@ -76,9 +76,13 @@ def apply(root: Path) -> None:
     (a/'voice_tools.py').write_text(VOICE_TOOLS,encoding='utf-8')
     f=a/'agent.py'
     replace(f,'from phone_tools import PhoneTools','from phone_tools import PhoneTools\nfrom voice_tools import VoiceTools')
-    import re
     source = f.read_text(encoding='utf-8')
-    signature_pattern = r'(?m)^(    def __init__\\(self, browser: BrowserManager[^\\n]*?)(\\) -> None:)
+    lines = [line for line in source.splitlines() if 'def __init__(self, browser: BrowserManager' in line]
+    if len(lines) != 1 or not lines[0].rstrip().endswith(') -> None:'):
+        raise RuntimeError('Cannot safely locate Assistant constructor for voice upgrade')
+    original = lines[0]
+    changed = original.replace(') -> None:', ', voice_profile: str = "voice1", room=None) -> None:')
+    f.write_text(source.replace(original, changed, 1), encoding='utf-8')
     replace(f,'        self.phone_tools = PhoneTools()',
               '        self.phone_tools = PhoneTools()\n        self.voice_tools = VoiceTools(room)')
     replace(f,'                *self.phone_tools.tools,',
