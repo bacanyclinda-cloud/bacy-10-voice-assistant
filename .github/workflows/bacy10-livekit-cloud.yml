@@ -32,11 +32,13 @@ jobs:
           LK_KEY: ${{ secrets.LIVEKIT_API_KEY }}
           LK_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
           GOOGLE_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          BACY10_AGENT_KEY: ${{ secrets.BACY10_AGENT_KEY }}
         run: |
           [ -n "$LK_URL" ] || { echo "Missing LIVEKIT_URL repository secret"; exit 1; }
           [ -n "$LK_KEY" ] || { echo "Missing LIVEKIT_API_KEY repository secret"; exit 1; }
           [ -n "$LK_SECRET" ] || { echo "Missing LIVEKIT_API_SECRET repository secret"; exit 1; }
           [ -n "$GOOGLE_KEY" ] || { echo "Missing GOOGLE_API_KEY repository secret"; exit 1; }
+          [ "${#BACY10_AGENT_KEY}" -ge 32 ] || { echo "BACY10_AGENT_KEY must be a private GitHub repository secret of 32+ characters"; exit 1; }
       - name: Build original tutorial agent with BACY-10 identity
         run: python tools/bacy10_build_livekit_package.py --output build/BACY10-LIVEKIT-FULL-SOURCE
       - name: Install official LiveKit CLI
@@ -47,6 +49,8 @@ jobs:
           LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
           LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          BACY10_AGENT_KEY: ${{ secrets.BACY10_AGENT_KEY }}
+          BACY10_APP_URL: https://bacy-orbit-voice-companion.lovable.app
           OPERATION: ${{ inputs.operation }}
           AGENT_ID: ${{ inputs.agent_id }}
         run: |
@@ -54,7 +58,7 @@ jobs:
           lk project add --url "$LIVEKIT_URL" --api-key "$LIVEKIT_API_KEY" --api-secret "$LIVEKIT_API_SECRET" --default bacy10
           SECRET_FILE="$RUNNER_TEMP/bacy10-agent-secrets.env"
           umask 077
-          printf 'GOOGLE_API_KEY=%s\n' "$GOOGLE_API_KEY" > "$SECRET_FILE"
+          printf 'GOOGLE_API_KEY=%s\nBACY10_APP_URL=%s\nBACY10_AGENT_KEY=%s\n' "$GOOGLE_API_KEY" "$BACY10_APP_URL" "$BACY10_AGENT_KEY" > "$SECRET_FILE"
           cd build/BACY10-LIVEKIT-FULL-SOURCE/agent
           if [ "$OPERATION" = "create" ]; then
             lk agent create --region eu-central --secrets-file "$SECRET_FILE"
