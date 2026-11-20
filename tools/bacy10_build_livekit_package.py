@@ -17,6 +17,7 @@ from pathlib import Path
 
 from bacy10_phone_memory_upgrade import apply as apply_personal_phone_upgrade
 from bacy10_gmail_tools import apply as apply_gmail_tools
+from bacy10_voice_inside_android import apply as apply_android_voices
 
 SOURCE_URL = "https://github.com/ruxakK/jarvis-voice-butler.git"
 SOURCE_SHA = "d1cf71e40c72d2429af766646bea4869ba736c77"
@@ -624,6 +625,10 @@ def main() -> None:
     configure_flutter(output)
     apply_personal_phone_upgrade(output)
     apply_gmail_tools(output)
+    apply_android_voices(output)
+    # Resolve the additional ElevenLabs plugin in the generated pinned source.
+    # The original Flutter, Gemini and GitHub credentials stay untouched.
+    subprocess.run(['uv', 'lock', '--python', '3.12'], check=True, cwd=output / 'agent')
     improve_voice_personality(output)
     configure_web(output)
     write_guide(output)
@@ -631,7 +636,7 @@ def main() -> None:
     if not compileall.compile_dir(str(agent_dir), quiet=1):
         raise RuntimeError("Python agent source failed compilation")
     expected = [
-        "agent/src/agent.py", "agent/src/tools.py", "agent/src/gmail_tools.py", "agent/src/browser.py",
+        "agent/src/agent.py", "agent/src/tools.py", "agent/src/gmail_tools.py", "agent/src/voice_tools.py", "agent/src/browser.py",
         "agent/frontend/package.json", "agent/uv.lock",
         "mobile/lib/main.dart", "mobile/android/app/build.gradle",
         "mobile/android/app/src/main/AndroidManifest.xml",
