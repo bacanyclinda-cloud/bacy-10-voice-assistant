@@ -89,7 +89,7 @@ def apply(root: Path) -> None:
               '                *self.phone_tools.tools,\n                *self.voice_tools.tools,')
     # In the original profile, preserve the unchanged model, voice and instructions.
     replace(f,'                voice="Enceladus",',
-              '                voice="Puck" if voice_profile == "voice2" else "Enceladus",\n                **({"modalities":[genai_types.Modality.TEXT]} if voice_profile == "voice3" else {}),')
+              '                voice="Puck" if voice_profile == "voice2" else "Enceladus",\n                **({"response_modalities":["TEXT"]} if voice_profile == "voice3" else {}),')
     replace(f,'                        # Android phone actions and private memory\n',
               PERSONAL_CHOICE+'\n                        # Android phone actions and private memory\n')
     # Insert before session setup without assuming whitespace in the owner's config assignment.
@@ -119,7 +119,7 @@ def apply(root: Path) -> None:
     candidates = [line for line in source.splitlines()
                   if line.lstrip().startswith('assistant = Assistant(')]
     if len(candidates) != 1 or not candidates[0].rstrip().endswith(')'):
-        raise RuntimeError('Unable to find the Assistant construction site safely.')
+        raise RuntimeError('Assistant construction mismatch: '+repr([line.strip()[:180] for line in source.splitlines() if 'Assistant(' in line])+' count='+str(len(candidates)))
     original = candidates[0]
     changed = original.rstrip()[:-1] + ', voice_profile=voice_profile, room=ctx.room)'
     f.write_text(source.replace(original, changed, 1), encoding='utf-8')
