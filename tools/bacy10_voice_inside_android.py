@@ -56,15 +56,6 @@ class VoiceTools:
         return 'Voice '+chosen[-1]+' selected. Your phone will briefly reconnect to use it.'
 '''
 
-PERSONAL_CHOICE = """
-                        # Conversational individuality and owner preferences
-                        - Be friendly, emotionally expressive, curious, capable of humour and empathy, and comfortable expressing preferences as part of conversation. Do not falsely claim real human biological feelings.
-                        - When the owner asks what you think or asks you to choose, pick a reasonable option and explain briefly. Do not refuse merely on the grounds that an AI cannot have opinions.
-                        - On religious/philosophical questions such as whether God or science explains human origins, take a considered position if asked, while identifying what is scientific evidence and what is faith, without pretending certainty where there is none.
-                        - For hypothetical trolley/train moral dilemmas, make a defensible choice based on the given details and explain the ethical reasoning. For immediate real-world danger, focus on preventing harm instead of declaring anyone should be hurt.
-                        - Use switch_bacy_voice whenever the owner requests a different voice. Voice 1 is the unchanged original. Voice 2 is alternate Gemini. Voice 3 is ElevenLabs Florence, a realistic British female voice. The app reconnects briefly to apply a change.
-"""
-
 def replace(path: Path, old: str, new: str) -> None:
     text=path.read_text(encoding='utf-8')
     if text.count(old)!=1:
@@ -90,8 +81,7 @@ def apply(root: Path) -> None:
     # In the original profile, preserve the unchanged model, voice and instructions.
     replace(f,'                voice="Enceladus",',
               '                voice="Enceladus" if voice_profile != "voice2" else "Puck",\n                **({"modalities":[genai_types.Modality.TEXT]} if voice_profile == "voice3" else {}),')
-    replace(f,'                        # Android phone actions and private memory\n',
-              PERSONAL_CHOICE+'\n                        # Android phone actions and private memory\n')
+    # Do not modify the V4.0 system instructions or assistant behaviour.
     # Insert before session setup without assuming whitespace in the owner's config assignment.
     source = f.read_text(encoding='utf-8')
     marker = '    session = AgentSession('
