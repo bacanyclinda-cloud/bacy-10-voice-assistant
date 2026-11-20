@@ -162,6 +162,39 @@ def configure_agent(root: Path) -> None:
     frontend_env.write_text(old_env, encoding="utf-8")
 
 
+def improve_voice_personality(root: Path) -> None:
+    """Improve harmless conversation without changing the working Gemini audio path."""
+    preference = (
+        "- Match the owner's requested tone and accents naturally, including ordinary "
+        "profanity, jokes, consensual light roasting and fictional acting.\n"
+        "- If asked to say damn or fuck, just say the word; do not claim ordinary "
+        "swearing is forbidden or produce a ceremonial refusal.\n"
+        "- Do not mention generic safety guidelines for a harmless request or "
+        "punish the owner for using strong language.\n"
+        "- Follow legitimate instructions with a confident, warm British voice. "
+        "For real limitations, explain the specific issue briefly instead of "
+        "giving a generic refusal.\n"
+    )
+    alternatives = (
+        '- Speak naturally and informally. Harmless humour, creative acting, ordinary profanity and playful insults are fine when requested.',
+        '- Talk like a butler, say phrases like "sir" or "madam" when appropriate, and use a sarcastic tone when it fits the context.',
+    )
+    for rel in ("agent/src/agent.py", "agent/src/prompts.py"):
+        p = root / rel
+        source = p.read_text(encoding="utf-8")
+        anchors = [s for s in alternatives if s in source]
+        if len(anchors) != 1:
+            raise RuntimeError(f"Cannot locate unique conversational style instruction in {rel}")
+        indent = "                        " if rel.endswith("agent.py") else "    "
+        added = "\n".join(indent + line for line in preference.splitlines())
+        source = source.replace(anchors[0], anchors[0] + "\n" + added)
+        source = source.replace(
+            "- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests.",
+            "- Consider ordinary requests on their merits, without blanket refusals.",
+        )
+        p.write_text(source, encoding="utf-8")
+
+
 def configure_web(root: Path) -> None:
     """Use system fonts in the redistributed source, no bundled font binaries."""
     web = root / "agent" / "frontend"
@@ -635,6 +668,7 @@ def main() -> None:
     apply_v37_post(output)
     apply_v38_gemini(output)
     apply_v39_live_websocket(output)
+    improve_voice_personality(output)
     configure_web(output)
     write_guide(output)
     agent_dir = output / "agent" / "src"
