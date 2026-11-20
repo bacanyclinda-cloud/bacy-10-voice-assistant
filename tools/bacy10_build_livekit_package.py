@@ -635,6 +635,7 @@ def main() -> None:
     apply_android_actions(output)
     apply_mcp_slots(output)
     apply_v37_post(output)
+    # Restore owner personality after legacy prompt normalisation.
     apply_owner_instruction_recovery(output)
     apply_v38_gemini(output)
     apply_v39_live_websocket(output)
