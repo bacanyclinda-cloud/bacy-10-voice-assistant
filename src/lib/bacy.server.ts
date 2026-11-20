@@ -9,10 +9,12 @@ export async function generateBacyReply({
   request,
   apiKey,
   history,
+  extraInstructions,
 }: {
   request: Request;
   apiKey: string;
   history: { role: "user" | "assistant"; content: string }[];
+  extraInstructions?: string;
 }) {
   const runIdFetch = createLovableAiGatewayRunIdFetch(getLovableAiGatewayRunId(request));
   const provider = createOpenAI({
@@ -27,7 +29,7 @@ export async function generateBacyReply({
   const messages: ModelMessage[] = history.map((item) => ({ role: item.role, content: item.content }));
   const result = streamText({
     model: provider.responses("openai/gpt-6-astra"),
-    instructions: BACY_INSTRUCTIONS,
+    instructions: extraInstructions ? `${BACY_INSTRUCTIONS}\n\n${extraInstructions}` : BACY_INSTRUCTIONS,
     messages,
     abortSignal: request.signal,
     providerOptions: {
