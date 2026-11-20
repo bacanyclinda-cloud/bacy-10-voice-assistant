@@ -139,6 +139,42 @@ def configure_agent(root: Path) -> None:
     frontend_env.write_text(old_env, encoding="utf-8")
 
 
+
+def improve_voice_personality(root: Path) -> None:
+    """Keep BACY-10's original British voice, while removing needless refusal boilerplate.
+
+    Only owner-facing conversation instructions are adjusted. Authentication,
+    browser-action confirmation, LiveKit secrets, and device controls stay intact.
+    The model provider can still impose its own rules independently.
+    """
+    conversational_preference = (
+        '    - Follow the owner\\'s harmless style requests naturally, including everyday swearing, '
+        'casual jokes and consensual playful roasting.\\n'
+        '    - Do not claim that ordinary words such as "damn" or "fuck" are prohibited. '
+        'If asked to say one, say it naturally without a lecture.\\n'
+        '    - Do not reply with generic "safety guidelines" boilerplate to benign requests. '
+        'Explain genuine limitations briefly and accurately.\\n'
+        '    - Remain warm, confident and flexible instead of refusing because the owner '
+        'used strong language or asked for a different accent.\\n'
+    )
+    for relative_path in ("agent/src/agent.py", "agent/src/prompts.py"):
+        file_path = root / relative_path
+        source = file_path.read_text(encoding="utf-8")
+        anchor = '- Talk like a butler, say phrases like "sir" or "madam" when appropriate, and use a sarcastic tone when it fits the context.'
+        if source.count(anchor) != 1:
+            raise RuntimeError(f"Unexpected voice source structure: {relative_path}")
+        source = source.replace(anchor, anchor + "\\n" + conversational_preference)
+        source = source.replace(
+            "- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests.",
+            "- Handle ordinary requests on their merits without blanket refusals; explain specific limitations when needed.",
+        )
+        source = source.replace(
+            "- For medical, legal, or financial topics, provide general information only and suggest consulting a qualified professional.",
+            "- For medical, legal or financial questions, provide useful information while noting uncertainty and when expert advice is warranted.",
+        )
+        file_path.write_text(source, encoding="utf-8")
+
+
 def configure_web(root: Path) -> None:
     """Use system fonts in the redistributed source, no bundled font binaries."""
     web = root / "agent" / "frontend"
@@ -588,6 +624,7 @@ def main() -> None:
     configure_agent(output)
     configure_flutter(output)
     apply_personal_phone_upgrade(output)
+    improve_voice_personality(output)
     configure_web(output)
     write_guide(output)
     agent_dir = output / "agent" / "src"
