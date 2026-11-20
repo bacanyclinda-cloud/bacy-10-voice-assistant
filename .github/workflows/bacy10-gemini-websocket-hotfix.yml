@@ -38,6 +38,8 @@ jobs:
           assert 'api_version="v1beta"' in agent
           assert 'model="gemini-3.8-live"' in agent
           assert 'conversation_item_added' in agent
+          assert 'language_codes=["en-ZA", "en-GB", "en-US"]' in agent
+          assert 'async def read_previous_conversation' in (root/'agent/src/phone_tools.py').read_text()
           assert 'mcp.MCPToolset' in agent
           assert (root/'mobile/lib/support/bacy10_cloud_memory.dart').is_file()
           print('Verified v1beta + existing owner features')
@@ -48,7 +50,7 @@ jobs:
           uv lock --python 3.12
           uv sync --python 3.12 --locked
           uv run python -m compileall -q src
-          uv run pytest -q tests/test_v38_gemini_runtime.py tests/test_v39_live_websocket.py
+          uv run pytest -q tests/test_v38_gemini_runtime.py tests/test_v39_live_websocket.py tests/test_bacy10_call_continuity.py tests/test_bacy10_english_and_recall.py
       - name: Check actual realtime WebSocket with current Google key
         working-directory: build/livekit/agent
         run: |
@@ -61,6 +63,7 @@ jobs:
               model='gemini-3.8-live',
               api_version='v1beta',
               voice='Enceladus', language='en-GB',
+              input_audio_transcription=types.AudioTranscriptionConfig(language_codes=['en-ZA','en-GB','en-US']),
               tool_response_scheduling=types.FunctionResponseScheduling.WHEN_IDLE,
               api_key=os.environ['GOOGLE_API_KEY'])
             session=model.session()
