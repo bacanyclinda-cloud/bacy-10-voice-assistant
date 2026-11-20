@@ -115,8 +115,8 @@ def apply(root: Path) -> None:
     source = source.replace(marker, setup + marker, 1)
     f.write_text(source, encoding='utf-8')
     replace(f,'    session = AgentSession(\n','    session = AgentSession(\n        tts=voice3_tts,\n')
-    replace(f, 'agent=Assistant(browser),',
-            'agent=Assistant(browser, voice_profile=voice_profile, room=ctx.room),')
+    replace(f, 'assistant = Assistant(browser, gemini_api_key=owner_gemini, owner_mcp=owner_mcp)',
+            'assistant = Assistant(browser, gemini_api_key=owner_gemini, owner_mcp=owner_mcp, voice_profile=voice_profile, room=ctx.room)')
     replace(root/'agent/pyproject.toml',
         '    "livekit-plugins-ai-coustics~=0.2",',
         '    "livekit-plugins-ai-coustics~=0.2",\n    "livekit-plugins-elevenlabs>=1.8.0,<2",')
