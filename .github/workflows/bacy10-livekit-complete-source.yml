@@ -12,6 +12,7 @@ on:
       - .github/workflows/bacy10-livekit-complete-source.yml
       - tools/bacy10_build_livekit_package.py
       - tools/bacy10_phone_memory_upgrade.py
+      - tools/bacy10_gmail_tools.py
       - BACY10-LIVEKIT-DOWNLOAD.md
 
 # Only test the newest source revision; cancel obsolete APK builds on this branch.
@@ -69,6 +70,8 @@ jobs:
           assert (root/"mobile/lib/support/bacy10_memory.dart").is_file()
           assert (root/"agent/src/phone_tools.py").is_file()
           assert "PhoneTools" in agent
+          assert (root/"agent/src/gmail_tools.py").is_file()
+          assert "GmailTools" in agent and "list_latest_email_subjects" in agent
           assert "LIVEKIT_SANDBOX_ID" not in mobile
           assert "LIVEKIT_TOKEN_ENDPOINT=" in (root/"mobile/assets/.env").read_text()
           print("SOURCE VALIDATION PASSED: real agent, browser tools, web app, Flutter mobile and safe templates")
