@@ -40,6 +40,7 @@ from bacy10_v36_mcp_slots_upgrade import apply as apply_mcp_slots
 from bacy10_android_device_controls import apply as apply_device_controls
 from bacy10_center_orb import apply as apply_center_orb
 from bacy10_owner_profile_upgrade import apply as apply_built_in_profile
+from bacy10_owner_instruction_recovery import apply as apply_owner_instruction_recovery
 
 SOURCE_URL = "https://github.com/ruxakK/jarvis-voice-butler.git"
 SOURCE_SHA = "d1cf71e40c72d2429af766646bea4869ba736c77"
@@ -634,6 +635,7 @@ def main() -> None:
     apply_android_actions(output)
     apply_mcp_slots(output)
     apply_v37_post(output)
+    apply_owner_instruction_recovery(output)
     apply_v38_gemini(output)
     apply_v39_live_websocket(output)
     apply_android_voices(output)
