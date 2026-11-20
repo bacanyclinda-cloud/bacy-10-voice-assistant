@@ -28,6 +28,7 @@ on:
       - tools/bacy10_android_device_controls.py
       - tools/bacy10_center_orb.py
       - tools/bacy10_owner_profile_upgrade.py
+      - tools/bacy10_owner_instruction_recovery.py
       - tools/bacy10_assistant_reliability_upgrade.py
       - tools/bacy10_v15_assistant_upgrade.py
       - tools/bacy10_v16_visual_results_upgrade.py
