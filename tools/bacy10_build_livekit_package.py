@@ -658,3 +658,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+# CI validation trigger: verify the v40 Android three-voice source build.
