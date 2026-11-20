@@ -92,8 +92,12 @@ def apply(root: Path) -> None:
               '                voice="Puck" if voice_profile == "voice2" else "Enceladus",\n                **({"modalities":[genai_types.Modality.TEXT]} if voice_profile == "voice3" else {}),')
     replace(f,'                        # Android phone actions and private memory\n',
               PERSONAL_CHOICE+'\n                        # Android phone actions and private memory\n')
-    replace(f,'    owner_providers=await request_owner_providers()',"""    owner_providers=await request_owner_providers()
-    voice_profile=owner_providers.get('voice_profile','voice1')
+    # Insert before session setup without assuming whitespace in the owner's config assignment.
+    source = f.read_text(encoding='utf-8')
+    marker = '    session = AgentSession('
+    if source.count(marker) != 1 or 'owner_providers' not in source[:source.index(marker)]:
+        raise RuntimeError('Phone provider configuration is not available before session setup.')
+    setup = """    voice_profile=owner_providers.get('voice_profile','voice1')
     if voice_profile not in ('voice1','voice2','voice3'):
         voice_profile='voice1'
     voice3_tts=None
@@ -102,15 +106,23 @@ def apply(root: Path) -> None:
         if not isinstance(key,str) or not key.strip():
             raise RuntimeError('Voice 3 requires an ElevenLabs key in Android AI Providers.')
         from livekit.plugins import elevenlabs
-        # Text-only Gemini output is spoken only by ElevenLabs; no double speech.
         voice3_tts=elevenlabs.TTS(
             api_key=key,
             voice_id='22N9cF8z0o7y23njdyaY',
             model='eleven_flash_v2_5',
-        )""")
+        )
+"""
+    source = source.replace(marker, setup + marker, 1)
+    f.write_text(source, encoding='utf-8')
     replace(f,'    session = AgentSession(\n','    session = AgentSession(\n        tts=voice3_tts,\n')
-    replace(f,'assistant = Assistant(browser, gemini_api_key=owner_gemini, owner_mcp=owner_mcp)',
-              'assistant = Assistant(browser, gemini_api_key=owner_gemini, owner_mcp=owner_mcp, voice_profile=voice_profile, room=ctx.room)')
+    source = f.read_text(encoding='utf-8')
+    candidates = [line for line in source.splitlines()
+                  if line.lstrip().startswith('assistant = Assistant(')]
+    if len(candidates) != 1 or not candidates[0].rstrip().endswith(')'):
+        raise RuntimeError('Unable to find the Assistant construction site safely.')
+    original = candidates[0]
+    changed = original.rstrip()[:-1] + ', voice_profile=voice_profile, room=ctx.room)'
+    f.write_text(source.replace(original, changed, 1), encoding='utf-8')
     replace(root/'agent/pyproject.toml',
         '    "livekit-plugins-ai-coustics~=0.2",',
         '    "livekit-plugins-ai-coustics~=0.2",\n    "livekit-plugins-elevenlabs>=1.8.0,<2",')
