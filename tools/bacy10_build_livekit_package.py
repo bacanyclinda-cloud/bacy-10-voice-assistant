@@ -640,8 +640,7 @@ def main() -> None:
     apply_android_voices(output)
     # Restore the owner's natural V4 personality in BOTH live prompt sources.
     # Keep the underlying privacy, consent, security and serious-harm guardrails.
-    apply_owner_instruction_recovery(output)
-    # Apply the owner's personality after voice generation so the v40 stage cannot overwrite it.
+    # Restore owner personality once, after voice generation, so V4.0 keeps it.
     apply_owner_instruction_recovery(output)
     # V4 package identity: do not ship an APK still labelled as V3.8.
     pubspec = output / "mobile" / "pubspec.yaml"
