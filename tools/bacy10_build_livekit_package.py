@@ -187,7 +187,7 @@ def improve_voice_personality(root: Path) -> None:
         # Remove obsolete tutorial persona rules that caused rigid greetings and canned replies.
         source = source.replace(
             '- Only answer in long responses when the user explicitly asks for a detailed explanation or summary.',
-            '- Match the owner's desired level of detail; provide useful detail whenever the task benefits from it.',
+            "- Match the owner's desired level of detail; provide useful detail whenever the task benefits from it.",
         )
         source = source.replace(
             '- If the user asks \'BACY-10 you there?\', answer with something simple lie \'At your service, Sir\' or \'Yes, Sir, I am here to assist you\' or a variation of that.',
