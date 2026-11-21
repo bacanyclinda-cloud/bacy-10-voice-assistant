@@ -110,12 +110,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class BacyMemory {
   static const _storage = FlutterSecureStorage();
   static const _key = 'bacy10_private_profile_v1';
-  static const Map<String, String> _defaults = {
-    'name': 'BW Silinda',
-    'studies': 'UNISA student studying Foundation Phase teaching',
-    'projects': 'BACY-10 voice assistant, Loop Secure, ZORA South Africa, MBMF, ENZO Tools',
-    'interests': 'Android technology, AI assistants, building useful business software',
-  };
+  // Start with an empty profile. Never silently repopulate personal facts after a reset.
+  static const Map<String, String> _defaults = <String, String>{};
 
   static Future<Map<String, String>> readAll() async {
     final stored = await _storage.read(key: _key);
