@@ -52,11 +52,11 @@ def apply(root: Path) -> None:
         # indentation in prompts.py. The pinned upstream source uses different
         # indentation in those two files.
         guardrail_pattern = re.compile(
-            r"(?m)^([ \\t]*)# Guardrails[ \\t]*\\n"
-            r"[ \\t]*\\n"
-            r"([ \\t]*)- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests\\.[ \\t]*\\n"
-            r"[ \\t]*- For medical, legal, or financial topics, provide general information only and suggest consulting a qualified professional\\.[ \\t]*\\n"
-            r"[ \\t]*- Protect privacy and minimize sensitive data\\.[ \\t]*"
+            r"(?m)^([ \t]*)# Guardrails[ \t]*\n"
+            r"[ \t]*\n"
+            r"([ \t]*)- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests\.[ \t]*\n"
+            r"[ \t]*- For medical, legal, or financial topics, provide general information only and suggest consulting a qualified professional\.[ \t]*\n"
+            r"[ \t]*- Protect privacy and minimize sensitive data\.[ \t]*"
         )
 
         def owner_boundaries(match):
