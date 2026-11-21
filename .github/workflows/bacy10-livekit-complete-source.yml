@@ -373,7 +373,7 @@ jobs:
 
   livekit-cloud-update:
     name: Deploy updated voice-agent tools after all checks pass
-    if: github.ref == 'refs/heads/fix/bacy10-v38-gemini-live-runtime-20261119' || github.ref == 'refs/heads/fix/bacy10-v40-owner-personality-20261121'
+    if: github.ref == 'refs/heads/fix/bacy10-v38-gemini-live-runtime-20261119' || github.ref == 'refs/heads/fix/bacy10-v40-owner-personality-20261121' || github.ref == 'refs/heads/feature/bacy10-v40-android-three-voices-20261120'
     needs: [python-agent, flutter-android, nextjs-web]
     runs-on: ubuntu-latest
     environment: livekit-production
