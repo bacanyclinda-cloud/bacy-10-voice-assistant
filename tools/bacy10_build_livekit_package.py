@@ -34,7 +34,6 @@ from bacy10_v38_gemini_live_upgrade import apply as apply_v38_gemini
 from bacy10_v39_live_websocket_fix import apply as apply_v39_live_websocket
 from bacy10_voice_inside_android import apply as apply_android_voices
 from bacy10_owner_instruction_recovery import apply as apply_owner_instruction_recovery
-from bacy10_owner_instruction_recovery import apply as apply_owner_instruction_recovery
 from bacy10_v35_provider_settings_upgrade import apply as apply_provider_settings
 from bacy10_v36_owner_ui_upgrade import apply as apply_owner_ui
 from bacy10_v36_android_actions_upgrade import apply as apply_android_actions
