@@ -170,7 +170,8 @@ jobs:
           assert 'ordinary profanity and playful insults' in agent
           assert 'Do not automatically censor or refuse' not in agent
           assert '# BACY-10 personality -- owner\'s confirmed preference' not in agent
-          assert "Never generate an image, show a lesson popup" in agent
+          assert 'A direct approval such as "yes", "do it", or "go ahead"' in agent
+          assert "clearly approves the specific action just proposed" in agent
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyWakeListener.kt").is_file()
           assert "setScreenShareEnabled(true)" in mobile
           assert "PhoneTools" in agent
