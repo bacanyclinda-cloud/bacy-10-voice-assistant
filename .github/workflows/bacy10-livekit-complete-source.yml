@@ -410,3 +410,5 @@ jobs:
           lk project add --url "$LIVEKIT_URL" --api-key "$LIVEKIT_API_KEY" --api-secret "$LIVEKIT_API_SECRET" --default bacy10
           lk agent deploy --id "CA_4rt8fujSg5pZ" --secrets-file "$RUNNER_TEMP/bacy10-agent-secrets.env"
           rm -f "$RUNNER_TEMP/bacy10-agent-secrets.env"
+
+# Owner-requested CI trigger: validate the complete BACY-10 V4.0 package and deploy LiveKit only after all checks pass.
