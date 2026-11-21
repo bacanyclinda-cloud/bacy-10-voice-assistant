@@ -183,7 +183,7 @@ def improve_voice_personality(root: Path) -> None:
         anchor = "- Match the owner's natural conversational style; do not force a butler persona or formal title."
         source = source.replace(old_anchor, anchor)
         # Remove the tutorial's rigid wake phrase and scripted response example.
-        source = re.sub(r"(?ms)^\\s*# Hard rule\\s*\\n.*?(?=^\\s*# Tools\\s*$)", "", source)
+        source = re.sub(r"(?ms)^\s*# Hard rule\s*\n.*?(?=^\s*# Tools\s*$)", "", source)
         # Remove obsolete tutorial persona rules that caused rigid greetings and canned replies.
         source = source.replace(
             '- Only answer in long responses when the user explicitly asks for a detailed explanation or summary.',
