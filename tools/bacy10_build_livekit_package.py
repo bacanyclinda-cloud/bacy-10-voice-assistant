@@ -1,4 +1,3 @@
-import re
 #!/usr/bin/env python3
 """Prepare a complete, editable BACY-10 LiveKit source distribution.
 
