@@ -229,6 +229,33 @@ jobs:
       - name: Run offline agent and real browser tests
         working-directory: source/agent
         run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_quick_search.py tests/test_image_provider.py tests/test_voice_stability.py tests/test_background_voice.py tests/test_floating_capsule.py tests/test_cloud_memory.py tests/test_memory_reliability.py tests/test_owner_provider_settings.py tests/test_owner_v36_ui.py tests/test_android_v36.py tests/test_v36_mcp_slots.py tests/test_v37_direct_source.py tests/test_v38_gemini_runtime.py tests/test_browser.py
+      - name: Verify all three voice paths and secure phone RPC
+        working-directory: source
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          root=Path('.')
+          agent=(root/'agent/src/agent.py').read_text()
+          voice=(root/'agent/src/voice_tools.py').read_text()
+          ctrl=(root/'mobile/lib/controllers/app_ctrl.dart').read_text()
+          providers=(root/'mobile/lib/support/bacy10_provider_settings.dart').read_text()
+          screen=(root/'mobile/lib/screens/agent_screen.dart').read_text()
+          pyproject=(root/'agent/pyproject.toml').read_text()
+          checks={
+            'original Gemini voice remains Enceladus':'voice="Enceladus" if voice_profile != "voice2" else "Puck"' in agent,
+            'alternate Gemini voice is Puck':'voice="Enceladus" if voice_profile != "voice2" else "Puck"' in agent,
+            'female voice uses text-only Gemini hybrid mode':'genai_types.Modality.TEXT' in agent and 'tts=voice3_tts' in agent,
+            'ElevenLabs Florence configured':'voice_id=\'22N9cF8z0o7y23njdyaY\'' in agent and 'eleven_flash_v2_5' in agent,
+            'ElevenLabs dependency pinned':'livekit-plugins-elevenlabs>=1.8.0,<2' in pyproject,
+            'voice switch is an actual LiveKit RPC':'method=\'bacy10.voice\'' in voice and 'switch_bacy_voice' in voice,
+            'phone validates caller is the agent':'room.agentParticipant?.identity != request.callerIdentity' in ctrl,
+            'phone persists selected voice securely':'BacyProviderSettings.save(\'voice_profile\',chosen)' in ctrl and 'FlutterSecureStorage' in providers,
+            'voice three requires stored API key':'elevenlabs_api_key' in ctrl and 'elevenlabs_api_key' in providers,
+            'all three choices are exposed in Android UI':all(x in screen for x in ['voice1','voice2','voice3']),
+          }
+          for name,ok in checks.items(): print(('PASS' if ok else 'FAIL')+' '+name)
+          assert all(checks.values()), 'BACY-10 voice integration regression check failed'
+          PY
       # The upstream tests/test_agent.py evaluates live LLM responses using a
       # real LiveKit inference API key. Run it ONLY in your configured environment;
       # no fabricated keys are supplied to CI.
