@@ -73,7 +73,7 @@ jobs:
           assert (root/"mobile/lib/support/bacy10_memory.dart").is_file()
           assert (root/"agent/src/phone_tools.py").is_file()
           assert "PhoneTools" in agent
-          assert "call the owner bro" in agent.lower(), "Generated voice prompt must use the casual owner preference"
+          assert "use bro when it fits" in agent.lower(), "Generated voice prompt must use the casual owner preference"
           assert "Never promise unconditional obedience" in agent, "Generated prompt must retain realistic action boundaries"
           assert (root/"agent/src/gmail_tools.py").is_file()
           assert "GmailTools" in agent and "list_latest_email_subjects" in agent
