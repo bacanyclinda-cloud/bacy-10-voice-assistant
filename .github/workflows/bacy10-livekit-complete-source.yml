@@ -283,7 +283,7 @@ jobs:
           xml = manifest.read_text()
           old_label = 'android:label="BACY-10"'
           assert xml.count(old_label) == 1
-          manifest.write_text(xml.replace(old_label, 'android:label="BACY-10 v3.8"'))
+          manifest.write_text(xml.replace(old_label, 'android:label="BACY-10 v4.0"'))
           PY
           flutter build apk --release
           mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/bacy10-v40.apk
