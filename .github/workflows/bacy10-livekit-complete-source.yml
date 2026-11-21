@@ -158,7 +158,11 @@ jobs:
           assert "thoughtful conversation partner" in personality
           assert "explicitly asks for a roast" in personality
           assert "Follow harmless, lawful and authorised owner requests" in personality
-          assert "# Guardrails" in personality
+          assert "# Owner-first boundaries" in personality
+          assert "Do not blanket-refuse ordinary, harmless, lawful requests" in personality
+          assert "Do not lecture the owner about internal policies" in personality
+          assert "Do not impose a one-sentence limit" in personality
+          assert "decline harmful or out-of-scope requests" not in personality
           assert '"whatsapp_compose" ->' in (root/'mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/MainActivity.kt').read_text()
           assert 'FlutterSecureStorage' in (root/'mobile/lib/support/bacy10_provider_settings.dart').read_text()
           assert 'Earlier {turn.get(' not in agent
