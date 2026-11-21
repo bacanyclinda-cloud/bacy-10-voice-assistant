@@ -16,7 +16,31 @@ import tempfile
 from pathlib import Path
 
 from bacy10_phone_memory_upgrade import apply as apply_personal_phone_upgrade
-from bacy10_gmail_tools import apply as apply_gmail_tools
+from bacy10_assistant_reliability_upgrade import apply as apply_reliability_upgrade
+from bacy10_v15_assistant_upgrade import apply as apply_v15_assistant
+from bacy10_v16_visual_results_upgrade import apply as apply_visual_results
+from bacy10_v17_fluid_motion_upgrade import apply as apply_fluid_motion
+from bacy10_v18_search_skills_upgrade import apply as apply_search_skills
+from bacy10_v19_stability_upgrade import apply as apply_stability
+from bacy10_v20_kinetic_sculpture_upgrade import apply as apply_kinetic_visual
+from bacy10_v21_hands_free_upgrade import apply as apply_handsfree
+from bacy10_v25_voice_stability_upgrade import apply as apply_voice_stability
+from bacy10_v26_background_voice_upgrade import apply as apply_background_voice
+from bacy10_v27_compact_overlay_upgrade import apply as apply_compact_overlay
+from bacy10_v28_cloud_memory_upgrade import apply as apply_cloud_memory
+from bacy10_memory_reliability_upgrade import apply as apply_durable_memory
+from bacy10_v37_direct_source_cleanup import pre as apply_v37_pre, post as apply_v37_post
+from bacy10_v38_gemini_live_upgrade import apply as apply_v38_gemini
+from bacy10_v39_live_websocket_fix import apply as apply_v39_live_websocket
+from bacy10_voice_inside_android import apply as apply_android_voices
+from bacy10_owner_instruction_recovery import apply as apply_owner_instruction_recovery
+from bacy10_v35_provider_settings_upgrade import apply as apply_provider_settings
+from bacy10_v36_owner_ui_upgrade import apply as apply_owner_ui
+from bacy10_v36_android_actions_upgrade import apply as apply_android_actions
+from bacy10_v36_mcp_slots_upgrade import apply as apply_mcp_slots
+from bacy10_android_device_controls import apply as apply_device_controls
+from bacy10_center_orb import apply as apply_center_orb
+from bacy10_owner_profile_upgrade import apply as apply_built_in_profile
 
 SOURCE_URL = "https://github.com/ruxakK/jarvis-voice-butler.git"
 SOURCE_SHA = "d1cf71e40c72d2429af766646bea4869ba736c77"
@@ -138,40 +162,6 @@ def configure_agent(root: Path) -> None:
     old_env = frontend_env.read_text(encoding="utf-8")
     old_env = old_env.replace("AGENT_NAME=\n", "AGENT_NAME=bacy-10\n")
     frontend_env.write_text(old_env, encoding="utf-8")
-
-
-
-def improve_voice_personality(root: Path) -> None:
-    """Make ordinary conversation natural while keeping original agent safeguards."""
-    conversational_preference = (
-        "- Follow harmless style requests, including everyday swearing, casual jokes, "
-        "consensual playful roasting and accent preferences.\n"
-        "- Do not claim everyday words such as damn and fuck are forbidden. "
-        "Say them naturally when asked, without a lecture.\n"
-        "- Avoid generic safety-guideline boilerplate for benign requests; "
-        "explain genuine limitations briefly and accurately.\n"
-        "- Remain warm, confident and flexible, while confirming consequential "
-        "browser or device actions before making changes.\n"
-    )
-    for relative_path in ("agent/src/agent.py", "agent/src/prompts.py"):
-        file_path = root / relative_path
-        source = file_path.read_text(encoding="utf-8")
-        anchor = '- Talk like a butler, say phrases like "sir" or "madam" when appropriate, and use a sarcastic tone when it fits the context.'
-        if source.count(anchor) != 1:
-            raise RuntimeError(f"Unexpected voice source structure: {relative_path}")
-        # Inject into both the active agent and its reference prompt, preserving indentation.
-        indent = "                        " if relative_path.endswith("agent.py") else "    "
-        added = "\n".join(indent + line for line in conversational_preference.splitlines())
-        source = source.replace(anchor, anchor + "\n" + added)
-        source = source.replace(
-            "- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests.",
-            "- Handle everyday requests on their merits without blanket refusals; explain specific limitations when needed.",
-        )
-        source = source.replace(
-            "- For medical, legal, or financial topics, provide general information only and suggest consulting a qualified professional.",
-            "- For medical, legal or financial questions, provide useful information while noting uncertainty and when expert advice is warranted.",
-        )
-        file_path.write_text(source, encoding="utf-8")
 
 
 def configure_web(root: Path) -> None:
@@ -623,15 +613,48 @@ def main() -> None:
     configure_agent(output)
     configure_flutter(output)
     apply_personal_phone_upgrade(output)
-    apply_gmail_tools(output)
-    improve_voice_personality(output)
+    apply_device_controls(output)
+    apply_center_orb(output)
+    apply_built_in_profile(output)
+    apply_reliability_upgrade(output)
+    apply_v15_assistant(output)
+    apply_visual_results(output)
+    apply_fluid_motion(output)
+    apply_search_skills(output)
+    apply_stability(output)
+    apply_kinetic_visual(output)
+    apply_handsfree(output)
+    apply_voice_stability(output)
+    apply_background_voice(output)
+    apply_compact_overlay(output)
+    apply_cloud_memory(output)
+    apply_durable_memory(output)
+    apply_v37_pre(output)
+    apply_provider_settings(output)
+    apply_owner_ui(output)
+    apply_android_actions(output)
+    apply_mcp_slots(output)
+    apply_v37_post(output)
+    apply_v38_gemini(output)
+    apply_v39_live_websocket(output)
+    apply_android_voices(output)
+    # Restore the owner's natural V4 personality in BOTH live prompt sources.
+    # Keep the underlying privacy, consent, security and serious-harm guardrails.
+    # Restore owner personality once, after voice generation, so V4.0 keeps it.
+    apply_owner_instruction_recovery(output)
+    # V4 package identity: do not ship an APK still labelled as V3.8.
+    pubspec = output / "mobile" / "pubspec.yaml"
+    pubspec_text = pubspec.read_text(encoding="utf-8")
+    if "version: 3.8.0+43" not in pubspec_text:
+        raise RuntimeError("Expected V3.8 package version was not found; refusing an unsafe V4 version rewrite.")
+    pubspec.write_text(pubspec_text.replace("version: 3.8.0+43", "version: 4.0.0+44", 1), encoding="utf-8")
     configure_web(output)
     write_guide(output)
     agent_dir = output / "agent" / "src"
     if not compileall.compile_dir(str(agent_dir), quiet=1):
         raise RuntimeError("Python agent source failed compilation")
     expected = [
-        "agent/src/agent.py", "agent/src/tools.py", "agent/src/gmail_tools.py", "agent/src/browser.py",
+        "agent/src/agent.py", "agent/src/tools.py", "agent/src/voice_tools.py", "agent/src/browser.py",
         "agent/frontend/package.json", "agent/uv.lock",
         "mobile/lib/main.dart", "mobile/android/app/build.gradle",
         "mobile/android/app/src/main/AndroidManifest.xml",
@@ -646,3 +669,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+# CI validation trigger: verify the v40 Android three-voice source build.
