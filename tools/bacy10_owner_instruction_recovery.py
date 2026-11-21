@@ -70,11 +70,20 @@ def apply(root: Path) -> None:
         if count != 1:
             raise RuntimeError(f"Cannot safely normalize upstream guardrails in {relative}: matched {count} blocks")
 
-        source = source.replace(
-            "# Owner-first boundaries",
-            PERSONALITY.strip() + "\n# Owner-first boundaries",
-            1,
+        def insert_personality(match):
+            indent = match.group(1)
+            personality_lines = PERSONALITY.strip().splitlines()
+            personality = "\\n".join(indent + line if line else "" for line in personality_lines)
+            return personality + "\\n" + indent + "# Owner-first boundaries"
+
+        source, count = re.subn(
+            r"(?m)^([ \\t]*)# Owner-first boundaries$",
+            insert_personality,
+            source,
+            count=1,
         )
+        if count != 1:
+            raise RuntimeError(f"Cannot safely insert owner personality into {relative}: heading count={count}")
         path.write_text(source, encoding="utf-8")
     tests = root / "agent/tests/test_owner_instruction_recovery.py"
     tests.write_text("""from pathlib import Path
