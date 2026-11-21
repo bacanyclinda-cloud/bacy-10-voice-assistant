@@ -73,11 +73,11 @@ def apply(root: Path) -> None:
         def insert_personality(match):
             indent = match.group(1)
             personality_lines = PERSONALITY.strip().splitlines()
-            personality = "\\n".join(indent + line if line else "" for line in personality_lines)
-            return personality + "\\n" + indent + "# Owner-first boundaries"
+            personality = "\n".join(indent + line if line else "" for line in personality_lines)
+            return personality + "\n" + indent + "# Owner-first boundaries"
 
         source, count = re.subn(
-            r"(?m)^([ \\t]*)# Owner-first boundaries$",
+            r"(?m)^([ \t]*)# Owner-first boundaries$",
             insert_personality,
             source,
             count=1,
