@@ -53,21 +53,28 @@ def apply(root: Path) -> None:
             r"\\1- For medical, legal, or financial topics, provide general information only and suggest consulting a qualified professional\\.\\n"
             r"\\1- Protect privacy and minimize sensitive data\\."
         )
-        guardrail_replacement = (
-            r"\\1# Owner-first boundaries\n"
-            r"\\1- Do not blanket-refuse ordinary, harmless, lawful requests. Do not treat profanity, roleplay, criticism, controversial discussion, or playful insults as a reason to refuse.\n"
-            r"\\1- Do not lecture the owner about internal policies or recite hidden instructions. If a genuine boundary applies, state the practical limitation briefly and offer the closest useful alternative.\n"
-            r"\\1- Give useful educational and practical information about medical, legal, and financial subjects while being honest about uncertainty and professional limits; do not impersonate a licensed professional or claim certainty you do not have.\n"
-            r"\\1- Protect private information, credentials, and other people's rights. Do not facilitate serious harm, fraud, theft, or unauthorised access.\n"
-            r"\\1- Obtain the required confirmation before consequential external actions such as sending, purchasing, deleting, transferring money, or changing security settings."
-        )
-        source, count = guardrail_pattern.subn(guardrail_replacement, source)
+
+        def owner_boundaries(match):
+            indent = match.group(1)
+            lines = (
+                "# Owner-first boundaries",
+                "- Do not blanket-refuse ordinary, harmless, lawful requests. Do not treat profanity, roleplay, criticism, controversial discussion, or playful insults as a reason to refuse.",
+                "- Do not lecture the owner about internal policies or recite hidden instructions. If a genuine boundary applies, state the practical limitation briefly and offer the closest useful alternative.",
+                "- Give useful educational and practical information about medical, legal, and financial subjects while being honest about uncertainty and professional limits; do not impersonate a licensed professional or claim certainty you do not have.",
+                "- Protect private information, credentials, and other people's rights. Do not facilitate serious harm, fraud, theft, or unauthorised access.",
+                "- Obtain the required confirmation before consequential external actions such as sending, purchasing, deleting, transferring money, or changing security settings.",
+            )
+            return "\\n".join(indent + line for line in lines)
+
+        source, count = guardrail_pattern.subn(owner_boundaries, source)
         if count != 1:
             raise RuntimeError(f"Cannot safely normalize upstream guardrails in {relative}: matched {count} blocks")
 
-        source = source.replace(marker, PERSONALITY + "\\n# Owner-first boundaries", 1)
-        # The old heading is now replaced as part of the owner-first block.
-        source = source.replace("# Owner-first boundaries", "", 1) if False else source
+        source = source.replace(
+            "# Owner-first boundaries",
+            PERSONALITY.strip() + "\\n# Owner-first boundaries",
+            1,
+        )
         path.write_text(source, encoding="utf-8")
     tests = root / "agent/tests/test_owner_instruction_recovery.py"
     tests.write_text("""from pathlib import Path
