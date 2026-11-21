@@ -74,6 +74,12 @@ jobs:
           assert (root/"agent/src/gmail_tools.py").is_file()
           gmail=(root/"agent/src/gmail_tools.py").read_text()
 assert "GmailTools" in agent and "list_latest_email_subjects" in gmail
+prompt=(root/"agent/src/prompts.py").read_text()
+for text in (agent,prompt):
+    assert "I love sex" in text and "fuck me" in text, "Owner-requested non-graphic phrase handling is missing"
+    assert "choose" in text.lower(), "Direct opinion/choice instruction is missing"
+    assert "Hard rule" not in text and "At your service, Sir" not in text, "Obsolete scripted wake response remains"
+    assert "Good day, Sir" not in text and "Your owner is addressed as sir" not in text, "Obsolete formal greeting remains"
           assert "LIVEKIT_SANDBOX_ID" not in mobile
           assert "LIVEKIT_TOKEN_ENDPOINT=" in (root/"mobile/assets/.env").read_text()
           print("SOURCE VALIDATION PASSED: real agent, browser tools, web app, Flutter mobile and safe templates")
