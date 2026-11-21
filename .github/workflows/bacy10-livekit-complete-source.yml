@@ -154,6 +154,9 @@ jobs:
           assert "BACY-10 owner instruction and personality recovery" in prompts
           assert "consensual teasing" in personality
           assert "clear reasoned view" in personality
+          assert "I reckon" in personality
+          assert "thoughtful conversation partner" in personality
+          assert "explicitly asks for a roast" in personality
           assert "Follow harmless, lawful and authorised owner requests" in personality
           assert "# Guardrails" in personality
           assert '"whatsapp_compose" ->' in (root/'mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/MainActivity.kt').read_text()
