@@ -6,7 +6,6 @@ agent, browser automation, Next.js and Flutter sources, preserving upstream
 license/attribution files. Applies limited branding, setup and no-demo fixes.
 Never reads, collects, stores or exports real API keys.
 """
-from __future__ import annotations
 
 import re
 
