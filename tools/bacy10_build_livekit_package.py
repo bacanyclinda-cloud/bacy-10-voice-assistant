@@ -162,7 +162,7 @@ def improve_voice_personality(root: Path) -> None:
         indent = "                        " if relative_path.endswith("agent.py") else "    "
         added = "\n".join(indent + line for line in conversational_preference.splitlines())
         replacement_anchor = '- Speak naturally and casually to the owner; use "bro" when it fits, and avoid defaulting to formal titles.'
-        source = source.replace(anchor, replacement_anchor + "\\n" + added)
+        source = source.replace(anchor, replacement_anchor + "\n" + added)
         source = source.replace(
             '- Also use phrases like "I am at your service" or "I am happy to assist", "As you wish" when appropriate, and use a sarcastic tone when it fits the context.',
             '- Use friendly, natural phrasing. Avoid theatrical butler language unless the owner specifically asks for it.',
