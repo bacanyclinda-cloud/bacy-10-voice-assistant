@@ -6,6 +6,7 @@ on:
     branches:
       - feature/bacy10-livekit-complete-source-20261118
       - fix/bacy10-connected-mobile-cloud-20261118
+      - fix/bacy10-restore-original-personality-20261121
       - main
       - feature/bacy10-android-phone-personal-memory-20261118
     paths:
