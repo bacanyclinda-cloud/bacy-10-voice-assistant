@@ -10,16 +10,13 @@ const EXPRESSIVE = `Speak naturally and conversationally; mirror the owner's ton
 
 export const askBacyBackup = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({
-    expressive: z.boolean(),
     history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().trim().min(1).max(2_000) })).min(1).max(12),
   }).parse(input))
   .handler(async ({ data }) => {
     const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) return { error: "The conversation service is not configured." };
     try {
-      const extraInstructions = data.expressive
-        ? `${BACKUP_SCOPE}\n\n${EXPRESSIVE}`
-        : BACKUP_SCOPE;
+      const extraInstructions = `${BACKUP_SCOPE}\n\n${EXPRESSIVE}`;
       const r = await generateBacyReply({ request: getRequest(), apiKey, history: data.history, extraInstructions });
       return { reply: r.reply.trim() };
     } catch (error) {
