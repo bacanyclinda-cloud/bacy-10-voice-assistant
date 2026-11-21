@@ -48,10 +48,10 @@ def apply(root: Path) -> None:
             source = source.replace(old, new)
 
         guardrail_pattern = re.compile(
-            r"(?m)^([ \\t]*)# Guardrails\\n[ \\t]*\\n"
-            r"([ \\t]*)- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests\\.\\n"
-            r"\\2- For medical, legal, or financial topics, provide general information only and suggest consulting a qualified professional\\.\\n"
-            r"\\2- Protect privacy and minimize sensitive data\\."
+            r"(?m)^([ \t]*)# Guardrails\n[ \t]*\n"
+            r"([ \t]*)- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests\.\n"
+            r"\2- For medical, legal, or financial topics, provide general information only and suggest consulting a qualified professional\.\n"
+            r"\2- Protect privacy and minimize sensitive data\."
         )
 
         def owner_boundaries(match):
@@ -64,7 +64,7 @@ def apply(root: Path) -> None:
                 "- Protect private information, credentials, and third-party rights. Do not facilitate serious harm, fraud, theft, or unauthorised access.",
                 "- Obtain the required confirmation before consequential external actions such as sending, purchasing, deleting, transferring money, or changing security settings.",
             )
-            return heading_indent + "# Owner-first boundaries\\n" + "\\n".join(bullet_indent + line for line in lines)
+            return heading_indent + "# Owner-first boundaries\n" + "\n".join(bullet_indent + line for line in lines)
 
         source, count = guardrail_pattern.subn(owner_boundaries, source)
         if count != 1:
