@@ -7,6 +7,7 @@ on:
       - feature/bacy10-livekit-complete-source-20261118
       - fix/bacy10-connected-mobile-cloud-20261118
       - main
+      - fix/bacy10-natural-owner-personality
       - feature/bacy10-android-phone-personal-memory-20261118
     paths:
       - .github/workflows/bacy10-livekit-complete-source.yml
@@ -67,9 +68,13 @@ jobs:
           assert "PairingTokenClient" in mobile
           assert "bacy10.phone" in mobile
           assert "bacy10.memory" in mobile
+          memory=(root/"mobile/lib/support/bacy10_memory.dart").read_text()
+          assert "static const Map<String, String> _defaults = <String, String>{};" in memory, "Fresh installs must not repopulate deleted personal facts"
           assert (root/"mobile/lib/support/bacy10_memory.dart").is_file()
           assert (root/"agent/src/phone_tools.py").is_file()
           assert "PhoneTools" in agent
+          assert "call the owner bro" in agent.lower(), "Generated voice prompt must use the casual owner preference"
+          assert "Never promise unconditional obedience" in agent, "Generated prompt must retain realistic action boundaries"
           assert (root/"agent/src/gmail_tools.py").is_file()
           assert "GmailTools" in agent and "list_latest_email_subjects" in agent
           assert "LIVEKIT_SANDBOX_ID" not in mobile
