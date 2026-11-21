@@ -260,6 +260,32 @@ def configure_web(root: Path) -> None:
         "className={cn(publicSans.variable, 'scroll-smooth font-sans antialiased')}",
     )
     layout.write_text(text, encoding="utf-8")
+
+    # Replace all visible tutorial branding with the owner's BACY-10 identity.
+    app_config = web / "app-config.ts"
+    config_text = app_config.read_text(encoding="utf-8")
+    config_replacements = {
+        "companyName: 'LiveKit'": "companyName: 'BACY-10'",
+        "pageTitle: 'LiveKit Voice Agent'": "pageTitle: 'BACY-10 Voice Assistant'",
+        "pageDescription: 'A voice agent built with LiveKit'": "pageDescription: 'BACY-10 private voice assistant'",
+        "startButtonText: 'Talk to Jarvis'": "startButtonText: 'Talk to BACY-10'",
+    }
+    for old, new in config_replacements.items():
+        if old not in config_text:
+            raise RuntimeError(f"Unexpected frontend branding source: {old}")
+        config_text = config_text.replace(old, new, 1)
+    app_config.write_text(config_text, encoding="utf-8")
+
+    welcome = web / "components" / "app" / "welcome-view.tsx"
+    welcome_text = welcome.read_text(encoding="utf-8")
+    if "Talk to your Jarvis AI Assistant" not in welcome_text:
+        raise RuntimeError("Unexpected frontend welcome heading")
+    welcome_text = welcome_text.replace(
+        "Talk to your Jarvis AI Assistant",
+        "Talk to your BACY-10 assistant",
+        1,
+    )
+    welcome.write_text(welcome_text, encoding="utf-8")
     css = web / "styles" / "globals.css"
     css.write_text(
         css.read_text(encoding="utf-8")
