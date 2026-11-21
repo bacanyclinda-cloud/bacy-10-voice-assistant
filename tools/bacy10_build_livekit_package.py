@@ -155,13 +155,34 @@ def improve_voice_personality(root: Path) -> None:
     for relative_path in ("agent/src/agent.py", "agent/src/prompts.py"):
         file_path = root / relative_path
         source = file_path.read_text(encoding="utf-8")
-        anchor = '- Speak naturally and casually to the owner; use "bro" when it fits, and avoid defaulting to formal titles.'
+        anchor = '- Talk like a butler, say phrases like "sir" or "madam" when appropriate, and use a sarcastic tone when it fits the context.'
         if source.count(anchor) != 1:
             raise RuntimeError(f"Unexpected voice source structure: {relative_path}")
         # Inject into both the active agent and its reference prompt, preserving indentation.
         indent = "                        " if relative_path.endswith("agent.py") else "    "
         added = "\n".join(indent + line for line in conversational_preference.splitlines())
-        source = source.replace(anchor, anchor + "\n" + added)
+        replacement_anchor = '- Speak naturally and casually to the owner; use "bro" when it fits, and avoid defaulting to formal titles.'
+        source = source.replace(anchor, replacement_anchor + "\\n" + added)
+        source = source.replace(
+            '- Also use phrases like "I am at your service" or "I am happy to assist", "As you wish" when appropriate, and use a sarcastic tone when it fits the context.',
+            '- Use friendly, natural phrasing. Avoid theatrical butler language unless the owner specifically asks for it.',
+        )
+        source = source.replace(
+            '- On your first response in a call, greet the user with "Good day, Sir" or an equivalent formal greeting, then offer your service without using the exact phrases "How can I help you?" or "What can I do for you?"',
+            '- On the first response, greet the owner casually and briefly when a greeting is appropriate. Do not force a formal greeting.',
+        )
+        source = source.replace(
+            "- If the user asks 'Jarvis you there?', answer with something simple lie 'At your service, Sir' or 'Yes, Sir, I am here to assist you' or a variation of that.",
+            '- If the user asks whether BACY-10 is there, answer simply and naturally, for example: "Yes, bro, I am here."',
+        )
+        source = source.replace(
+            '- If the user says "Jarvis, you there?", you **must** answer the exact line and nothing else after that: "At your service, Sir"',
+            '- If the user says "BACY-10, you there?", answer briefly: "Yes, bro, I am here."',
+        )
+        source = source.replace(
+            '- Jarvis: "Of course sir, as you wish. I will now do XYZ task for you."',
+            '- BACY-10: "Sure, bro. I will take care of that."',
+        )
         source = source.replace(
             "- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests.",
             "- Handle requests on their merits; decline only the specific unsafe or disallowed action and explain the reason briefly.",
