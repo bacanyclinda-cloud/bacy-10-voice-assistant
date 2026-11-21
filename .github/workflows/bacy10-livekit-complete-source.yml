@@ -212,6 +212,21 @@ jobs:
       - name: Install real Playwright Chromium for browser tests
         working-directory: source/agent
         run: uv run playwright install --with-deps chromium
+      - name: Update upstream package-version assertions for V4
+        working-directory: source/agent
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          tests = Path("tests")
+          changed = []
+          for path in tests.rglob("*.py"):
+              source = path.read_text(encoding="utf-8")
+              updated = source.replace("version: 3.8.0+43", "version: 4.0.0+44")
+              if updated != source:
+                  path.write_text(updated, encoding="utf-8")
+                  changed.append(str(path))
+          print("Updated V4 version assertions:", changed)
+          PY
       - name: Run offline agent and real browser tests
         working-directory: source/agent
         run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_quick_search.py tests/test_image_provider.py tests/test_voice_stability.py tests/test_background_voice.py tests/test_floating_capsule.py tests/test_cloud_memory.py tests/test_memory_reliability.py tests/test_owner_provider_settings.py tests/test_owner_instruction_recovery.py tests/test_owner_v36_ui.py tests/test_android_v36.py tests/test_v36_mcp_slots.py tests/test_v37_direct_source.py tests/test_v38_gemini_runtime.py tests/test_browser.py
@@ -276,7 +291,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: BACY10-v40-SAFE-INSTALL-RELEASE
-          path: source/mobile/build/app/outputs/flutter-apk/bacy10-v38.apk
+          path: source/mobile/build/app/outputs/flutter-apk/bacy10-v40.apk
           retention-days: 14
           if-no-files-found: error
 
