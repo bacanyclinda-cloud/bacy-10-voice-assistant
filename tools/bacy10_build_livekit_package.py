@@ -145,23 +145,23 @@ def improve_voice_personality(root: Path) -> None:
     """Make ordinary conversation natural while keeping original agent safeguards."""
     conversational_preference = (
         "- Follow the owner's clear, ordinary instructions accurately and efficiently; "
-        "do not argue, moralise, or make the owner repeat details already in context.\\n"
+        "do not argue, moralise, or make the owner repeat details already in context.\n"
         "- Use natural modern British English with a warm, confident, relaxed voice; "
-        "address the owner as sir naturally, not in every sentence.\\n"
+        "address the owner as sir naturally, not in every sentence.\n"
         "- Use contractions, humour, empathy, context-aware reactions, and varied wording; "
-        "avoid canned greetings and robotic repetition.\\n"
+        "avoid canned greetings and robotic repetition.\n"
         "- Give a clear, reasoned opinion when asked; do not hide behind generic AI disclaimers "
-        "or pretend every option is equally good.\\n"
+        "or pretend every option is equally good.\n"
         "- Follow harmless style requests, including everyday swearing, casual jokes, "
-        "consensual playful roasting and accent preferences.\\n"
+        "consensual playful roasting and accent preferences.\n"
         "- Do not claim everyday words such as damn and fuck are forbidden. "
-        "Say them naturally when asked, without a lecture.\\n"
+        "Say them naturally when asked, without a lecture.\n"
         "- Be proactive: infer reasonable details, complete the parts you can, and explain "
-        "genuine limitations briefly instead of pretending an action succeeded.\\n"
+        "genuine limitations briefly instead of pretending an action succeeded.\n"
         "- Keep warmth and human-like conversational expression without claiming to be "
-        "conscious or literally human.\\n"
+        "conscious or literally human.\n"
         "- Remain accurate and respectful; keep essential safety boundaries and confirm "
-        "consequential browser or device actions before making changes.\\n"
+        "consequential browser or device actions before making changes.\n"
     )
     for relative_path in ("agent/src/agent.py", "agent/src/prompts.py"):
         file_path = root / relative_path
@@ -607,12 +607,12 @@ Gemini Live is configured with GOOGLE_API_KEY, not with the leaked OpenAI key.
 """
     (root / "README-BACY10.md").write_text(guide, encoding="utf-8")
     (root / "SOURCE-CREDITS.txt").write_text(
-        "Original tutorial and code: ruxakK / Jarvis - Voice AI Butler\\n"
-        "https://github.com/ruxakK/jarvis-voice-butler\\n"
-        "Pinned commit: " + SOURCE_SHA + "\\n"
-        "LiveKit Flutter template is included in the original repository.\\n"
-        "Retain all original LICENSE files. Do not assume all upstream material\\n"
-        "has the same license. Review rights before commercial redistribution.\\n",
+        "Original tutorial and code: ruxakK / Jarvis - Voice AI Butler\n"
+        "https://github.com/ruxakK/jarvis-voice-butler\n"
+        "Pinned commit: " + SOURCE_SHA + "\n"
+        "LiveKit Flutter template is included in the original repository.\n"
+        "Retain all original LICENSE files. Do not assume all upstream material\n"
+        "has the same license. Review rights before commercial redistribution.\n",
         encoding="utf-8",
     )
 
