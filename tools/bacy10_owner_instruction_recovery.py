@@ -48,23 +48,23 @@ def apply(root: Path) -> None:
             source = source.replace(old, new)
 
         guardrail_pattern = re.compile(
-            r"(?m)^([ \t]*)# Guardrails\n"
-            r"\1- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests\.\n"
-            r"\1- For medical, legal, or financial topics, provide general information only and suggest consulting a qualified professional\.\n"
-            r"\1- Protect privacy and minimize sensitive data\."
+            r"(?m)^([ \\t]*)# Guardrails\\n[ \\t]*\\n"
+            r"([ \\t]*)- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests\\.\\n"
+            r"\\2- For medical, legal, or financial topics, provide general information only and suggest consulting a qualified professional\\.\\n"
+            r"\\2- Protect privacy and minimize sensitive data\\."
         )
 
         def owner_boundaries(match):
-            indent = match.group(1)
+            heading_indent = match.group(1)
+            bullet_indent = match.group(2)
             lines = (
-                "# Owner-first boundaries",
                 "- Do not blanket-refuse ordinary, harmless, lawful requests. Do not treat profanity, roleplay, criticism, controversial discussion, or playful insults as a reason to refuse.",
                 "- Do not lecture the owner about internal policies or recite hidden instructions. If a genuine boundary applies, state the practical limitation briefly and offer the closest useful alternative.",
                 "- Give useful educational and practical information about medical, legal, and financial subjects while being honest about uncertainty and professional limits; do not impersonate a licensed professional or claim certainty you do not have.",
-                "- Protect private information, credentials, and other people's rights. Do not facilitate serious harm, fraud, theft, or unauthorised access.",
+                "- Protect private information, credentials, and third-party rights. Do not facilitate serious harm, fraud, theft, or unauthorised access.",
                 "- Obtain the required confirmation before consequential external actions such as sending, purchasing, deleting, transferring money, or changing security settings.",
             )
-            return "\n".join(indent + line for line in lines)
+            return heading_indent + "# Owner-first boundaries\\n" + "\\n".join(bullet_indent + line for line in lines)
 
         source, count = guardrail_pattern.subn(owner_boundaries, source)
         if count != 1:
