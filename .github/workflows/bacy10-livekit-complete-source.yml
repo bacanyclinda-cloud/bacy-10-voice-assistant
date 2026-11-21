@@ -72,7 +72,8 @@ jobs:
           assert (root/"agent/src/phone_tools.py").is_file()
           assert "PhoneTools" in agent
           assert (root/"agent/src/gmail_tools.py").is_file()
-          assert "GmailTools" in agent and "list_latest_email_subjects" in agent
+          gmail=(root/"agent/src/gmail_tools.py").read_text()
+assert "GmailTools" in agent and "list_latest_email_subjects" in gmail
           assert "LIVEKIT_SANDBOX_ID" not in mobile
           assert "LIVEKIT_TOKEN_ENDPOINT=" in (root/"mobile/assets/.env").read_text()
           print("SOURCE VALIDATION PASSED: real agent, browser tools, web app, Flutter mobile and safe templates")
