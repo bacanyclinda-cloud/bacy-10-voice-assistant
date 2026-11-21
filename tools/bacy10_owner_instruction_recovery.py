@@ -72,6 +72,30 @@ def apply(root: Path) -> None:
             return heading_indent + "# Owner-first boundaries\n" + "\n".join(bullet_indent + line for line in lines)
 
         source, count = guardrail_pattern.subn(owner_boundaries, source)
+        if count == 0:
+            # Upstream prompt variants can retain the same Guardrails heading
+            # while changing the wording of one or more bullets. Replace only
+            # the contiguous bullet block immediately below that exact heading.
+            heading = re.search(r"(?m)^([ \\t]*)# Guardrails[ \\t]*$", source)
+            if heading:
+                tail = source[heading.end():]
+                lines_after = tail.splitlines(keepends=True)
+                index = 0
+                while index < len(lines_after) and not lines_after[index].strip():
+                    index += 1
+                bullet_start = index
+                while index < len(lines_after) and re.match(r"^[ \\t]*-", lines_after[index]):
+                    index += 1
+                if index > bullet_start:
+                    first_bullet = re.match(r"^([ \\t]*)-", lines_after[bullet_start])
+                    heading_indent = heading.group(1)
+                    bullet_indent = first_bullet.group(1)
+                    class _BoundaryMatch:
+                        def group(self, number):
+                            return heading_indent if number == 1 else bullet_indent
+                    replacement_block = owner_boundaries(_BoundaryMatch()) + "\\n"
+                    source = source[:heading.start()] + replacement_block + "".join(lines_after[index:])
+                    count = 1
         if count != 1:
             raise RuntimeError(f"Cannot safely normalize upstream guardrails in {relative}: matched {count} blocks")
 
