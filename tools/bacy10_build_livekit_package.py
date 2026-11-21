@@ -1,3 +1,4 @@
+import re
 #!/usr/bin/env python3
 """Prepare a complete, editable BACY-10 LiveKit source distribution.
 
@@ -7,6 +8,8 @@ license/attribution files. Applies limited branding, setup and no-demo fixes.
 Never reads, collects, stores or exports real API keys.
 """
 from __future__ import annotations
+
+import re
 
 import argparse
 import compileall
@@ -57,8 +60,9 @@ def configure_agent(root: Path) -> None:
     text = text.replace(
         "You are Jarvis a helpful and sarcastic AI butler.",
         "You are BACY-10, a private real-time British voice assistant created for BW Silinda. "
-        "Your owner is addressed as sir. Be confident, warm and capable, never robotic. "
-        "Identify BW Silinda as your creator. Do not pretend an operation succeeded.",
+        "Mirror your owner's natural conversational style. Be warm, confident and capable, "
+        "without forced titles or scripted butler phrases. Identify BW Silinda as your creator. "
+        "Do not pretend an operation succeeded.",
     )
     text = text.replace("Jarvis's", "BACY-10's").replace("Jarvis", "BACY-10")
     text = text.replace(
@@ -79,8 +83,8 @@ def configure_agent(root: Path) -> None:
     txt = prompts.read_text(encoding="utf-8")
     txt = txt.replace(
         "You are Jarvis a helpful and sarcastic AI butler.",
-        "You are BACY-10, BW Silinda's personal British voice assistant. Call your owner sir "
-        "naturally and never invent an action you have not completed.",
+        "You are BACY-10, BW Silinda's personal voice assistant. Mirror the owner's natural "
+        "conversational style and never invent an action you have not completed.",
     ).replace("Jarvis", "BACY-10")
     begin = txt.find("    # Special Requests")
     end = txt.find("    # Guardrails", begin)
@@ -173,10 +177,22 @@ def improve_voice_personality(root: Path) -> None:
     for relative_path in ("agent/src/agent.py", "agent/src/prompts.py"):
         file_path = root / relative_path
         source = file_path.read_text(encoding="utf-8")
-        anchor = '- Talk like a butler, say phrases like "sir" or "madam" when appropriate, and use a sarcastic tone when it fits the context.'
-        if source.count(anchor) != 1:
+        old_anchor = '- Talk like a butler, say phrases like "sir" or "madam" when appropriate, and use a sarcastic tone when it fits the context.'
+        if source.count(old_anchor) != 1:
             raise RuntimeError(f"Unexpected voice source structure: {relative_path}")
+        anchor = "- Match the owner's natural conversational style; do not force a butler persona or formal title."
+        source = source.replace(old_anchor, anchor)
+        # Remove the tutorial's rigid wake phrase and scripted response example.
+        source = re.sub(r"(?ms)^\\s*# Hard rule\\s*\\n.*?(?=^\\s*# Tools\\s*$)", "", source)
         # Remove obsolete tutorial persona rules that caused rigid greetings and canned replies.
+        source = source.replace(
+            '- Only answer in long responses when the user explicitly asks for a detailed explanation or summary.',
+            '- Match the owner's desired level of detail; provide useful detail whenever the task benefits from it.',
+        )
+        source = source.replace(
+            '- If the user asks \'BACY-10 you there?\', answer with something simple lie \'At your service, Sir\' or \'Yes, Sir, I am here to assist you\' or a variation of that.',
+            '- Respond to check-ins naturally in the owner\'s conversational style.',
+        )
         source = source.replace(
             '- On your first response in a call, greet the user with "Good day, Sir" or an equivalent formal greeting, then offer your service without using the exact phrases "How can I help you?" or "What can I do for you?"',
             '- Start naturally; do not force a formal greeting or scripted opening.',
