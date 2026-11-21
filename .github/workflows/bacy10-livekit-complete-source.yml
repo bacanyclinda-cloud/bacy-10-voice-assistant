@@ -146,7 +146,8 @@ jobs:
               assert "BACY-10 owner instruction and personality recovery" in instructions
               assert "Follow harmless, lawful and authorised owner requests" in instructions
               assert "clear reasoned view" in instructions
-              assert "# Guardrails" in instructions
+              assert "# Owner-first boundaries" in instructions
+              assert "Protect private information" in instructions
           assert (root/"mobile/lib/support/bacy10_cloud_memory.dart").is_file()
           assert 'conversation_item_added' in agent
           assert 'owner_behavior_preferences' in agent
