@@ -506,7 +506,7 @@ Pinned original commit: d1cf71e40c72d2429af766646bea4869ba736c77
 Video: https://youtu.be/Fhm8goKN6rM
 
 ## What is inside
-- agent/src/agent.py: LiveKit Agents realtime Gemini 3.1 Flash Live voice + British persona
+- agent/src/agent.py: LiveKit realtime Gemini voice agent with a concise, natural owner-first persona (casual 'bro', not forced 'sir/madam').
 - agent/src/browser.py and agent/src/tools.py: Playwright browser actions and confirmation gate
 - agent/frontend/: Next.js real LiveKit web frontend
 - agent/tests/: upstream tests; agent/uv.lock and pyproject.toml
@@ -514,9 +514,13 @@ Video: https://youtu.be/Fhm8goKN6rM
 - BUILD_AND_TEST.md: commands and verification notes
 - Upstream LICENSE and README files are retained. Respect upstream usage rights.
 
-BACY-10 changes: updated name and creator; LiveKit agent name set to bacy-10;
+BACY-10 changes: updated name and owner-first voice guidelines; LiveKit agent name set to bacy-10;
 Android label BACY-10; Flutter uses a real HTTPS token endpoint instead of
 silently using LiveKit's demonstration bot; developer defaults use headless Chromium.
+The editable personal profile is stored in Android encrypted storage on the phone.
+It starts empty after reset; this source package does not provide a Cloudflare
+conversation-history deletion endpoint, so do not describe local profile clearing
+as deletion of cloud conversation records.
 
 ## You need REAL credentials
 LiveKit Cloud project with LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET,
