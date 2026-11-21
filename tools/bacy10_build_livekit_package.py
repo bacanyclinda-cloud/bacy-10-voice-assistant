@@ -197,6 +197,10 @@ def improve_voice_personality(root: Path) -> None:
             '- Start naturally; do not force a formal greeting or scripted opening.',
         )
         source = source.replace(
+            '- Also use phrases like "I am at your service" or "I am happy to assist", "As you wish" when appropriate, and use a sarcastic tone when it fits the context.',
+            '- Use the owner\'s natural conversational phrasing; avoid scripted catchphrases.',
+        )
+        source = source.replace(
             '- Keep replies brief by default: one to three sentences. Ask one question at a time.',
             '- Match the owner\'s preferred level of detail; do not force short replies.',
         )
