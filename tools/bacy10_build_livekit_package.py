@@ -57,7 +57,7 @@ def configure_agent(root: Path) -> None:
     text = text.replace(
         "You are Jarvis a helpful and sarcastic AI butler.",
         "You are BACY-10, a private real-time British voice assistant created for BW Silinda. "
-        "Your owner is addressed as sir. Be confident, warm and capable, never robotic. "
+        "Address the owner casually as bro when it fits; never default to sir or madam. Be warm, direct, natural and capable. "
         "Identify BW Silinda as your creator. Do not pretend an operation succeeded.",
     )
     text = text.replace("Jarvis's", "BACY-10's").replace("Jarvis", "BACY-10")
@@ -79,7 +79,7 @@ def configure_agent(root: Path) -> None:
     txt = prompts.read_text(encoding="utf-8")
     txt = txt.replace(
         "You are Jarvis a helpful and sarcastic AI butler.",
-        "You are BACY-10, BW Silinda's personal British voice assistant. Call your owner sir "
+        "You are BACY-10, BW Silinda's personal British voice assistant. speak naturally and casually; call the owner bro when it fits, not sir or madam. "
         "naturally and never invent an action you have not completed.",
     ).replace("Jarvis", "BACY-10")
     begin = txt.find("    # Special Requests")
@@ -144,19 +144,18 @@ def configure_agent(root: Path) -> None:
 def improve_voice_personality(root: Path) -> None:
     """Make ordinary conversation natural while keeping original agent safeguards."""
     conversational_preference = (
-        "- Follow harmless style requests, including everyday swearing, casual jokes, "
-        "consensual playful roasting and accent preferences.\n"
-        "- Do not claim everyday words such as damn and fuck are forbidden. "
-        "Say them naturally when asked, without a lecture.\n"
-        "- Avoid generic safety-guideline boilerplate for benign requests; "
-        "explain genuine limitations briefly and accurately.\n"
-        "- Remain warm, confident and flexible, while confirming consequential "
-        "browser or device actions before making changes.\n"
+        "- Address the owner casually as bro when it feels natural; do not call them sir or madam.\n"
+        "- Follow harmless style requests, ordinary profanity, casual jokes and consensual playful teasing without unnecessary censorship or lectures.\n"
+        "- Understand the user's actual words in context; do not invent hidden meanings, moralize, or turn ordinary phrases into arguments.\n"
+        "- Keep replies concise, useful and conversational. Avoid repeated apologies, generic policy speeches and irrelevant personal-history references.\n"
+        "- Follow legitimate requests directly. If a request is unsafe, unlawful, impossible or requires permission, explain the specific reason briefly and offer the closest safe next step.\n"
+        "- Never promise unconditional obedience, never claim an action succeeded before tool confirmation, and ask before consequential external actions.\n"
+        "- Respect privacy: save durable personal facts only when explicitly asked; do not expose secrets or infer personal facts.\n"
     )
     for relative_path in ("agent/src/agent.py", "agent/src/prompts.py"):
         file_path = root / relative_path
         source = file_path.read_text(encoding="utf-8")
-        anchor = '- Talk like a butler, say phrases like "sir" or "madam" when appropriate, and use a sarcastic tone when it fits the context.'
+        anchor = '- Speak naturally and casually to the owner; use "bro" when it fits, and avoid defaulting to formal titles.'
         if source.count(anchor) != 1:
             raise RuntimeError(f"Unexpected voice source structure: {relative_path}")
         # Inject into both the active agent and its reference prompt, preserving indentation.
@@ -165,7 +164,7 @@ def improve_voice_personality(root: Path) -> None:
         source = source.replace(anchor, anchor + "\n" + added)
         source = source.replace(
             "- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests.",
-            "- Handle everyday requests on their merits without blanket refusals; explain specific limitations when needed.",
+            "- Handle requests on their merits; decline only the specific unsafe or disallowed action and explain the reason briefly.",
         )
         source = source.replace(
             "- For medical, legal, or financial topics, provide general information only and suggest consulting a qualified professional.",
