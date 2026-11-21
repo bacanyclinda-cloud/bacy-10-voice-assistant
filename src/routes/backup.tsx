@@ -50,7 +50,7 @@ function BackupStudio() {
   const fetchStatus = useServerFn(getBackupVoiceStatus);
 
   const [voice, setVoiceState] = useState<BackupVoice>("voice1");
-  const [expressive, setExpressive] = useState(false);
+  const [expressive, setExpressive] = useState(true);
   const [capabilities, setCapabilities] = useState({ voice2: false, voice3: false });
   const [phase, setPhase] = useState<"idle" | "listening" | "thinking" | "speaking">("idle");
   const [message, setMessage] = useState("");
@@ -282,7 +282,7 @@ function BackupStudio() {
         <section style={panel}>
           <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
             <input type="checkbox" checked={expressive} onChange={e => setExpressive(e.target.checked)} />
-            More expressive opinions and conversational warmth (optional)
+            Expressive personality, humour and direct opinions
           </label>
           <p style={{ fontSize: 11, color: "#9cb5ca" }}>
             You can ask philosophical questions and get a reasoned choice. AI doesn't have human feelings.
