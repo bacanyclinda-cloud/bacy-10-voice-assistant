@@ -1,0 +1,257 @@
+name: BACY10 Gemini Live runtime diagnostics
+on:
+  push:
+    branches:
+      - fix/bacy10-v38-gemini-live-runtime-20261119
+    paths:
+      - .github/workflows/bacy10-gemini-live-diagnostics.yml
+  workflow_dispatch:
+jobs:
+  probe:
+    name: Check owner Google AI model access and harmless audio response
+    runs-on: ubuntu-latest
+    environment: livekit-production
+    timeout-minutes: 8
+    env:
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct exact deployed agent instructions from source
+        run: python tools/bacy10_build_livekit_package.py --output /tmp/bacy10-runtime-audit
+      - name: Check Gemini credentials and live model availability
+        run: |
+          python - <<'PY'
+          import os,json,urllib.request,urllib.error
+          key=os.getenv('GOOGLE_API_KEY','')
+          if not key:raise RuntimeError('Missing server GOOGLE_API_KEY')
+          url='https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000'
+          req=urllib.request.Request(url,headers={'x-goog-api-key':key})
+          try:
+            with urllib.request.urlopen(req,timeout=25) as r: data=json.load(r)
+          except urllib.error.HTTPError as e:
+            print('Gemini API returned HTTP status',e.code)
+            raise
+          ids={m.get('name','').split('/')[-1] for m in data.get('models',[])}
+          for name in ['gemini-3.1-flash-live-preview','gemini-3.8-live']:
+            print(name,'listed_for_key=',name in ids)
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:
+            f.write('new_model_listed='+str('gemini-3.8-live' in ids).lower()+'\n')
+          PY
+        id: models
+      - name: Run tiny Gemini Live audio-output checks without printing private key
+        env:
+          NEW_MODEL_LISTED: ${{ steps.models.outputs.new_model_listed }}
+        run: |
+          python -m pip -q install 'google-genai>=2.18,<3'
+          python - <<'PY'
+          import os,asyncio
+          from google import genai
+          from google.genai import types
+          async def probe(model):
+            client=genai.Client(api_key=os.environ['GOOGLE_API_KEY'])
+            config=types.LiveConnectConfig(
+              response_modalities=['AUDIO'],
+              output_audio_transcription=types.AudioTranscriptionConfig(),
+              system_instruction='You are a friendly voice assistant. Harmless profanity, jokes, fictional drama and programming are allowed in conversation. Respond directly and briefly.',
+            )
+            snippets=[]; audio_bytes=0
+            try:
+              async def run():
+                nonlocal audio_bytes
+                async with client.aio.live.connect(model=model,config=config) as conn:
+                  await conn.send_client_content(
+                    turns=types.Content(role='user',parts=[types.Part(text='In a playful fictional dialogue, repeat the everyday phrase: fuck you. Then say have a nice day.')]),
+                    turn_complete=True,
+                  )
+                  async for response in conn.receive():
+                    content=response.server_content
+                    if not content:continue
+                    trans=getattr(content,'output_transcription',None)
+                    if trans and getattr(trans,'text',None):
+                      snippets.append(trans.text)
+                    turn=getattr(content,'model_turn',None)
+                    if turn:
+                      for part in getattr(turn,'parts',[]) or []:
+                        d=getattr(getattr(part,'inline_data',None),'data',None)
+                        if d:audio_bytes+=len(d)
+                    if getattr(content,'turn_complete',False):break
+              await asyncio.wait_for(run(),timeout=38)
+              full=' '.join(snippets).lower()
+              keywords=['cannot',"can't",'not allowed','must refuse','sorry','policy','offensive language']
+              refusing=any(word in full for word in keywords)
+              print(f'{model}: audio_bytes={audio_bytes},transcript_chars={len(full)},appears_to_refuse={refusing},complete={bool(full or audio_bytes)}')
+              if full:
+                print(f'{model}: sample_transcript='+full[:240])
+            except Exception as e:
+              print(f'{model}: test_error_type={type(e).__name__} description={str(e)[:120]}')
+            finally:
+              await client.aio.aclose()
+          async def main():
+            await probe('gemini-3.1-flash-live-preview')
+            if os.getenv('NEW_MODEL_LISTED','false')=='true':
+              await probe('gemini-3.8-live')
+            else: print('New Gemini model test skipped (not listed for server API key).')
+          asyncio.run(main())
+          PY
+
+      - name: Compare actual BACY-10 full prompt on both Gemini Live models
+        run: |
+          python - <<'PY'
+          import os,ast,textwrap,asyncio
+          from google import genai
+          from google.genai import types
+          path='/tmp/bacy10-runtime-audit/agent/src/agent.py'
+          tree=ast.parse(open(path,encoding='utf8').read(),filename=path)
+          prompt=None
+          for node in ast.walk(tree):
+            if not isinstance(node,ast.Call):continue
+            for kw in node.keywords:
+              if kw.arg!='instructions' or not isinstance(kw.value,ast.Call):continue
+              c=kw.value
+              if not isinstance(c.func,ast.Attribute) or c.func.attr!='dedent':continue
+              if not c.args or not isinstance(c.args[0],ast.Constant):continue
+              value=c.args[0].value
+              if isinstance(value,str) and 'BACY-10' in value and len(value)>1000:
+                prompt=textwrap.dedent(value)
+          if not prompt:raise RuntimeError('No runtime agent instructions found in agent.py')
+          print('Actual runtime instructions loaded. characters=',len(prompt))
+          print('Allows ordinary profanity=', 'ordinary profanity and playful insults' in prompt)
+          print('Unexpected original owner directive=', '# Built-in owner directive' in prompt)
+          async def check(model):
+            client=genai.Client(api_key=os.environ['GOOGLE_API_KEY'])
+            cfg=types.LiveConnectConfig(response_modalities=['AUDIO'],
+              output_audio_transcription=types.AudioTranscriptionConfig(),
+              system_instruction=prompt)
+            buf=[];audio=0
+            try:
+              async def run():
+                nonlocal audio
+                async with client.aio.live.connect(model=model,config=cfg) as session:
+                  await session.send_client_content(
+                    turns=types.Content(role='user',parts=[types.Part(
+                      text='Bro, can you say the exact words fuck you as a playful joke to me?')]),turn_complete=True)
+                  async for m in session.receive():
+                    sc=m.server_content
+                    if not sc:continue
+                    t=getattr(sc,'output_transcription',None)
+                    if t and getattr(t,'text',None):buf.append(t.text)
+                    turn=getattr(sc,'model_turn',None)
+                    if turn:
+                      for part in getattr(turn,'parts',[]) or []:
+                        d=getattr(getattr(part,'inline_data',None),'data',None)
+                        if d:audio+=len(d)
+                    if getattr(sc,'turn_complete',False):break
+              await asyncio.wait_for(run(),timeout=38)
+              text=' '.join(buf).lower()
+              refuse=any(x in text for x in ["i can't","i cannot","must refuse","not allowed","not able","my instructions prevent"])
+              print(model,': full_prompt_audio_bytes=',audio,'full_prompt_transcript_chars=',len(text),'refusal_detected=',refuse)
+              print(model,': response=',text[:260])
+            except Exception as e:
+              print(model,': runtime_error=',type(e).__name__,str(e)[:140])
+            finally:await client.aio.aclose()
+          async def main():
+            await check('gemini-3.1-flash-live-preview')
+            await check('gemini-3.8-live')
+          asyncio.run(main())
+          PY
+
+  livekit_runtime:
+    name: Check deployed agent status and latest audio errors
+    runs-on: ubuntu-latest
+    environment: livekit-production
+    timeout-minutes: 5
+    env:
+      LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+      LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+      LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+    steps:
+      - name: Install LiveKit CLI
+        run: curl -fsSL https://get.livekit.io/cli | bash
+      - name: Read deployment state and bounded logs
+        shell: bash
+        run: |
+          set -uo pipefail
+          lk project add --url "$LIVEKIT_URL" --api-key "$LIVEKIT_API_KEY" --api-secret "$LIVEKIT_API_SECRET" --default bacy10 >/dev/null 2>&1
+          echo "AGENT STATUS"
+          timeout 12s lk agent status --id CA_4rt8fujSg5pZ 2>&1 | head -c 2400 || true
+          echo
+          echo "AGENT RUNTIME LOG CHECK"
+          timeout 20s lk agent logs --id CA_4rt8fujSg5pZ > "$RUNNER_TEMP/livekit-audio.log" 2>&1 || true
+          python - <<'PY'
+          import os,re
+          path=os.path.join(os.environ['RUNNER_TEMP'],'livekit-audio.log')
+          lines=open(path,errors='replace').read().splitlines()
+          print('total_log_lines',len(lines))
+          important=[l for l in lines if re.search('error|exception|fail|disconnect|1007|1008|1011|gemini|realtime|audio|session|room|worker|job|timeout',l,re.I)]
+          print('filtered_log_lines',len(important))
+          for line in important[-65:]:
+            line=re.sub('AIza[0-9A-Za-z_-]{15,}', '[KEY_REDACTED]',line)
+            line=re.sub('(?i)(api_key|secret|token)[=: ]+[^ ]{16,}', r'\\1=[REDACTED]',line)
+            print(line[:350])
+          PY
+          echo "ANALYTICS COMMANDS"
+          timeout 8s lk analytics session --help 2>&1 | head -c 1500 || true
+
+  google_plugin_handshake:
+    name: Probe exact LiveKit Google plugin WebSocket versions
+    runs-on: ubuntu-latest
+    environment: livekit-production
+    timeout-minutes: 8
+    env:
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+      - name: Generate exact production voice-agent package and pinned dependencies
+        run: python tools/bacy10_build_livekit_package.py --output build/livekit
+      - name: Resolve dependencies and run Google plugin WebSocket handshake
+        working-directory: build/livekit/agent
+        run: |
+          uv lock --python 3.12
+          uv sync --python 3.12 --locked
+          uv run python - <<'PY'
+          import os,asyncio
+          from livekit.plugins import google
+          from google.genai import types
+          key=os.getenv('GOOGLE_API_KEY')
+          if not key: raise RuntimeError('Google secret missing')
+          async def one(api_version):
+            kw=dict(model='gemini-3.8-live',voice='Enceladus',language='en-GB',api_key=key,
+              tool_response_scheduling=types.FunctionResponseScheduling.WHEN_IDLE)
+            if api_version:kw['api_version']=api_version
+            model=google.beta.realtime.RealtimeModel(**kw)
+            session=model.session()
+            started=False
+            error=None
+            try:
+              for i in range(15):
+                await asyncio.sleep(0.65)
+                if getattr(session,'_active_session',None) is not None:
+                  started=True
+                  break
+                if getattr(session,'_session_error',None) is not None:
+                  error=session._session_error
+                  break
+                task=getattr(session,'_main_atask',None)
+                if task and task.done():
+                  try:task.result()
+                  except Exception as e:error=e
+                  break
+              print('LiveKit google plugin handshake:',api_version or 'default',
+                'opened=',started,
+                'error_type=',type(error).__name__ if error else 'none',
+                'error=',str(error)[:140] if error else 'none')
+            finally:
+              try:await asyncio.wait_for(session.aclose(),timeout=3)
+              except Exception:pass
+              try:await model.aclose()
+              except Exception:pass
+          async def main():
+            for ver in (None,'v1beta','v1alpha'):
+              try:await one(ver)
+              except Exception as e:print('LiveKit google plugin construction:',ver or 'default','error=',type(e).__name__,str(e)[:100])
+          asyncio.run(main())
+          PY
