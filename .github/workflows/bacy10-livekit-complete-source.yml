@@ -7,6 +7,7 @@ on:
       - feature/bacy10-livekit-complete-source-20261118
       - fix/bacy10-connected-mobile-cloud-20261118
       - main
+      - fix/bacy10-v40-safe-reconcile-20261121
       - feature/bacy10-v40-android-three-voices-20261120
       - fix/bacy10-v40-owner-personality-20261121
       - feature/bacy10-android-phone-personal-memory-20261118
