@@ -95,7 +95,11 @@ def test_owner_instruction_recovery_is_in_both_live_prompts():
 
 def test_personality_recovery_does_not_remove_guardrails_or_tools():
     agent = Path("src/agent.py").read_text(encoding="utf-8")
-    assert "# Guardrails" in agent
+    assert "# Owner-first boundaries" in agent
+    assert "Do not blanket-refuse ordinary, harmless, lawful requests" in agent
+    assert "Do not lecture the owner about internal policies" in agent
+    assert "Do not impose a one-sentence limit" in agent
+    assert "decline harmful or out-of-scope requests" not in agent
     assert "BrowserTools" in agent
     assert "PhoneTools" in agent
     assert "owner_behavior_preferences" in agent
