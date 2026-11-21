@@ -640,6 +640,12 @@ def main() -> None:
     apply_v38_gemini(output)
     apply_v39_live_websocket(output)
     apply_android_voices(output)
+    # V4 package identity: do not ship an APK still labelled as V3.8.
+    pubspec = output / "mobile" / "pubspec.yaml"
+    pubspec_text = pubspec.read_text(encoding="utf-8")
+    if "version: 3.8.0+43" not in pubspec_text:
+        raise RuntimeError("Expected V3.8 package version was not found; refusing an unsafe V4 version rewrite.")
+    pubspec.write_text(pubspec_text.replace("version: 3.8.0+43", "version: 4.0.0+44", 1), encoding="utf-8")
     configure_web(output)
     write_guide(output)
     agent_dir = output / "agent" / "src"
