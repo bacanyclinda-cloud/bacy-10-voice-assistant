@@ -47,11 +47,16 @@ def apply(root: Path) -> None:
                 raise RuntimeError(f"Ambiguous voice instruction in {relative}: {old[:65]!r} occurs {count} times")
             source = source.replace(old, new)
 
+        # Match the three upstream guardrail bullets without assuming that
+        # indentation inside the agent's nested triple-quoted prompt matches
+        # indentation in prompts.py. The pinned upstream source uses different
+        # indentation in those two files.
         guardrail_pattern = re.compile(
-            r"(?m)^([ \t]*)# Guardrails\n[ \t]*\n"
-            r"([ \t]*)- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests\.\n"
-            r"\2- For medical, legal, or financial topics, provide general information only and suggest consulting a qualified professional\.\n"
-            r"\2- Protect privacy and minimize sensitive data\."
+            r"(?m)^([ \\t]*)# Guardrails[ \\t]*\\n"
+            r"[ \\t]*\\n"
+            r"([ \\t]*)- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests\\.[ \\t]*\\n"
+            r"[ \\t]*- For medical, legal, or financial topics, provide general information only and suggest consulting a qualified professional\\.[ \\t]*\\n"
+            r"[ \\t]*- Protect privacy and minimize sensitive data\\.[ \\t]*"
         )
 
         def owner_boundaries(match):
