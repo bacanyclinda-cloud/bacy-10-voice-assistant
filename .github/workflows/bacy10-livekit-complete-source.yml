@@ -134,7 +134,11 @@ jobs:
           assert 'BacyOverlayLauncherActivity' not in manifest, 'Restore original app launcher rather than v3.0 overlay'
           assert 'Ask BACY-10' not in (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyCompactOverlayService.kt").read_text()
           assert 'SYSTEM_ALERT_WINDOW' in manifest
-          assert 'version: 3.8.0+43' in (root/"mobile/pubspec.yaml").read_text()
+          assert 'version: 4.0.0+44' in (root/"mobile/pubspec.yaml").read_text()
+          assert (root/"agent/src/voice_tools.py").is_file()
+          assert "switch_bacy_voice" in (root/"agent/src/voice_tools.py").read_text()
+          assert "bacy10.voice" in (root/"mobile/lib/controllers/app_ctrl.dart").read_text()
+          assert "Voice 3" in (root/"mobile/lib/screens/agent_screen.dart").read_text()
           assert (root/"mobile/lib/support/bacy10_cloud_memory.dart").is_file()
           assert 'conversation_item_added' in agent
           assert 'owner_behavior_preferences' in agent
@@ -246,7 +250,7 @@ jobs:
       - name: Upload BACY-10 Android release-style APK
         uses: actions/upload-artifact@v4
         with:
-          name: BACY10-v38-ORIGINAL-ID-RELEASE
+          name: BACY10-v40-ORIGINAL-ID-RELEASE
           path: source/mobile/build/app/outputs/flutter-apk/app-release.apk
           retention-days: 14
           if-no-files-found: error
@@ -267,11 +271,11 @@ jobs:
           manifest.write_text(xml.replace(old_label, 'android:label="BACY-10 v3.8"'))
           PY
           flutter build apk --release
-          mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/bacy10-v38.apk
+          mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/bacy10-v40.apk
       - name: Upload BACY-10 Restored safe-install APK
         uses: actions/upload-artifact@v4
         with:
-          name: BACY10-v38-SAFE-INSTALL-RELEASE
+          name: BACY10-v40-SAFE-INSTALL-RELEASE
           path: source/mobile/build/app/outputs/flutter-apk/bacy10-v38.apk
           retention-days: 14
           if-no-files-found: error
