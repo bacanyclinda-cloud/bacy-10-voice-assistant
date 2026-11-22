@@ -1,0 +1,96 @@
+name: BACY10 Verified Voice WebSocket Hotfix
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - fix/bacy10-v39-gemini-websocket-v1beta-20261119
+    paths:
+      - .github/workflows/bacy10-gemini-websocket-hotfix.yml
+      - tools/bacy10_v39_live_websocket_fix.py
+      - tools/bacy10_build_livekit_package.py
+concurrency:
+  group: bacy10-voice-hotfix-v39
+  cancel-in-progress: true
+jobs:
+  verify_and_deploy:
+    name: Test live Google WebSocket before LiveKit deployment
+    runs-on: ubuntu-latest
+    environment: livekit-production
+    timeout-minutes: 20
+    env:
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+      LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+      LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+      - name: Rebuild BACY-10 agent, preserve Android and memory services
+        run: |
+          python tools/bacy10_build_livekit_package.py --output build/livekit
+          python - <<'PY'
+          from pathlib import Path
+          root=Path('build/livekit')
+          agent=(root/'agent/src/agent.py').read_text()
+          assert 'api_version="v1beta"' in agent
+          assert 'model="gemini-3.8-live"' in agent
+          assert 'conversation_item_added' in agent
+          assert 'mcp.MCPToolset' in agent
+          assert (root/'mobile/lib/support/bacy10_cloud_memory.dart').is_file()
+          print('Verified v1beta + existing owner features')
+          PY
+      - name: Install locked LiveKit Python and Google plugin dependencies
+        working-directory: build/livekit/agent
+        run: |
+          uv lock --python 3.12
+          uv sync --python 3.12 --locked
+          uv run python -m compileall -q src
+          uv run pytest -q tests/test_v38_gemini_runtime.py tests/test_v39_live_websocket.py
+      - name: Check actual realtime WebSocket with current Google key
+        working-directory: build/livekit/agent
+        run: |
+          uv run python - <<'PY'
+          import os,asyncio
+          from livekit.plugins import google
+          from google.genai import types
+          async def main():
+            model=google.beta.realtime.RealtimeModel(
+              model='gemini-3.8-live',
+              api_version='v1beta',
+              voice='Enceladus', language='en-GB',
+              tool_response_scheduling=types.FunctionResponseScheduling.WHEN_IDLE,
+              api_key=os.environ['GOOGLE_API_KEY'])
+            session=model.session()
+            opened=False
+            try:
+              for _ in range(20):
+                await asyncio.sleep(.45)
+                if session._active_session is not None:
+                  opened=True
+                  break
+                if session._session_error:
+                  raise RuntimeError('Google Live WebSocket failed: '+str(session._session_error)[:110])
+              if not opened: raise RuntimeError('Google Live WebSocket timeout with v1beta')
+              print('VERIFIED: actual LiveKit Google Gemini 3.8 WebSocket opened; no quota or endpoint error')
+            finally:
+              try: await asyncio.wait_for(session.aclose(),timeout=4)
+              except Exception:pass
+              try: await model.aclose()
+              except Exception:pass
+          asyncio.run(main())
+          PY
+      - name: Install official LiveKit CLI
+        run: curl -fsSL https://get.livekit.io/cli | bash
+      - name: Deploy same named BACY-10 agent with repaired WebSocket
+        working-directory: build/livekit/agent
+        run: |
+          set -euo pipefail
+          umask 077
+          printf 'GOOGLE_API_KEY=%s\n' "$GOOGLE_API_KEY" > "$RUNNER_TEMP/bacy10-v39-hotfix-secrets.env"
+          lk project add --url "$LIVEKIT_URL" --api-key "$LIVEKIT_API_KEY" --api-secret "$LIVEKIT_API_SECRET" --default bacy10
+          lk agent deploy --id "CA_4rt8fujSg5pZ" --secrets-file "$RUNNER_TEMP/bacy10-v39-hotfix-secrets.env"
+          rm -f "$RUNNER_TEMP/bacy10-v39-hotfix-secrets.env"
+          echo 'BACY-10 voice connection hotfix deployed'
