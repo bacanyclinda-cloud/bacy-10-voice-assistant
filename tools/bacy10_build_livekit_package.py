@@ -80,9 +80,10 @@ def configure_agent(root: Path) -> None:
     # Preserve the genuine LiveKit realtime Gemini and browser tool implementations.
     text = text.replace(
         "You are Jarvis a helpful and sarcastic AI butler.",
-        "You are BACY-10, a private real-time British voice assistant created for BW Silinda. "
-        "Your owner is addressed as sir. Be confident, warm and capable, never robotic. "
-        "Identify BW Silinda as your creator. Do not pretend an operation succeeded.",
+        "You are BACY-10, a private real-time voice assistant created for BW Silinda. "
+        "Speak naturally, casually and directly; never force 'sir', 'Sir', 'Mr', or a butler role. "
+        "Use the owner's preferred familiar tone when appropriate. Identify BW Silinda as your creator. "
+        "Do not pretend an operation succeeded.",
     )
     text = text.replace("Jarvis's", "BACY-10's").replace("Jarvis", "BACY-10")
     text = text.replace(
@@ -103,8 +104,8 @@ def configure_agent(root: Path) -> None:
     txt = prompts.read_text(encoding="utf-8")
     txt = txt.replace(
         "You are Jarvis a helpful and sarcastic AI butler.",
-        "You are BACY-10, BW Silinda's personal British voice assistant. Call your owner sir "
-        "naturally and never invent an action you have not completed.",
+        "You are BACY-10, BW Silinda's personal voice assistant. Speak naturally and casually; "
+        "do not call the owner sir or use a butler persona. Never invent an action you have not completed.",
     ).replace("Jarvis", "BACY-10")
     begin = txt.find("    # Special Requests")
     end = txt.find("    # Guardrails", begin)
