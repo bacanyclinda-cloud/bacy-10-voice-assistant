@@ -154,7 +154,7 @@ def test_offline_memory_persists_until_cloud_ack():
     assert "await flushFacts();" in src
     assert "_storage.write(key: _factQueueKey" in src
     assert "response?.statusCode != 200" in src
-    assert "return !(await pendingFacts()).containsKey(key);" in src
+    assert "return synced && !(await pendingFacts()).containsKey(key);" in src
 
 
 def test_cloud_reinstall_and_deleted_defaults():
@@ -163,7 +163,7 @@ def test_cloud_reinstall_and_deleted_defaults():
     assert "local.addAll(remote);" in src
     assert "local.addAll(await BacyCloudMemory.pendingFacts());" in src
     assert "BacyCloudMemory.forget(key)" in src
-    assert "cloud confirms" in src
+    assert "not yet confirmed" in src
     cloud = (ROOT / "bacy10_cloud_memory.dart").read_text()
     assert "remember(key, '__BACY10_DELETED__')" in cloud
 
