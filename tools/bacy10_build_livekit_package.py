@@ -675,3 +675,5 @@ if __name__ == "__main__":
 # CI validation trigger: verify the v40 Android three-voice source build.
 
 # CI trigger: revalidate the integrated V4.0 package after workflow assertion fixes.
+
+# CI trigger: verify the Android wake permission test case fix.
