@@ -5,6 +5,7 @@ import { VoiceSculpture, type VoicePhase } from "@/components/VoiceSculpture";
 import { askBacy } from "@/lib/bacy.functions";
 import { speakBacy } from "@/lib/bacy.speech.functions";
 import { readSpeechResults, type BrowserSpeechResult } from "@/lib/speech-results";
+import { appendConversation, promptConversation, restoreConversation, serializeConversation } from "@/lib/bacy-history";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -64,7 +65,7 @@ function BacyVoice() {
   function persistHistory(messages: HistoryMessage[]) {
     history.current = messages.slice(-40);
     try {
-      window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history.current));
+      window.localStorage.setItem(HISTORY_STORAGE_KEY, serializeConversation(history.current));
     } catch {
       // Private browsing or a full storage quota must not break conversation.
     }
@@ -79,18 +80,7 @@ function BacyVoice() {
   useEffect(() => {
     mounted.current = true;
     try {
-      const saved = window.localStorage.getItem(HISTORY_STORAGE_KEY);
-      if (saved) {
-        const parsed: unknown = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          history.current = parsed.filter((item): item is HistoryMessage =>
-            item !== null && typeof item === "object" &&
-            ((item as HistoryMessage).role === "user" || (item as HistoryMessage).role === "assistant") &&
-            typeof (item as HistoryMessage).content === "string" &&
-            (item as HistoryMessage).content.length > 0 && (item as HistoryMessage).content.length <= 2000
-          ).slice(-40);
-        }
-      }
+      history.current = restoreConversation(window.localStorage.getItem(HISTORY_STORAGE_KEY));
     } catch {
       history.current = [];
     }
@@ -181,7 +171,7 @@ function BacyVoice() {
     setReply("");
     setError("");
     setPhase("thinking");
-    const next: HistoryMessage[] = [...history.current.slice(-11), { role: "user" as const, content }];
+    const next: HistoryMessage[] = promptConversation(history.current, content);
     try {
       // Only real responses returned by the configured Lovable AI gateway are spoken.
       const result = await ask({ data: next });
@@ -192,7 +182,7 @@ function BacyVoice() {
         return;
       }
       const answer = result.reply.trim();
-      persistHistory([...history.current, { role: "user" as const, content }, { role: "assistant" as const, content: answer }]);
+      persistHistory(appendConversation(history.current, content, answer));
       setReply(answer);
       say(answer);
     } catch {
