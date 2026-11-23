@@ -22,6 +22,7 @@ export const Route = createFileRoute("/")({
 });
 
 type HistoryMessage = { role: "user" | "assistant"; content: string };
+const HISTORY_STORAGE_KEY = "bacy10.conversation.v1";
 type SpeechEvent = { results: ArrayLike<BrowserSpeechResult>; resultIndex: number };
 type SpeechError = { error: string };
 type Recognizer = {
@@ -68,6 +69,25 @@ function BacyVoice() {
 
   useEffect(() => {
     mounted.current = true;
+    // Keep a small private conversation window on this device so a refresh
+    // does not erase the active thread. The AI receives only the latest 12
+    // messages; storage is local to this browser and contains no credentials.
+    try {
+      const saved = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+      if (saved) {
+        const parsed: unknown = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          history.current = parsed
+            .filter((item): item is HistoryMessage =>
+              item !== null && typeof item === "object" &&
+              ((item as HistoryMessage).role === "user" || (item as HistoryMessage).role === "assistant") &&
+              typeof (item as HistoryMessage).content === "string")
+            .slice(-40);
+        }
+      }
+    } catch {
+      // Private browsing or disabled storage should not prevent voice use.
+    }
     const Speech = (window as SpeechBrowser).SpeechRecognition ?? (window as SpeechBrowser).webkitSpeechRecognition;
     setSpeechAvailable(Boolean(Speech));
     return () => {
@@ -166,7 +186,12 @@ function BacyVoice() {
         return;
       }
       const answer = result.reply.trim();
-      history.current = [...next, { role: "assistant" as const, content: answer }].slice(-12);
+      history.current = [...next, { role: "assistant" as const, content: answer }].slice(-40);
+      try {
+        window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history.current));
+      } catch {
+        // Storage quota or browser privacy settings must not block a reply.
+      }
       setReply(answer);
       say(answer);
     } catch {
