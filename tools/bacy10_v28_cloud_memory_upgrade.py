@@ -21,6 +21,35 @@ class BacyCloudMemory {
   static const _queueKey = 'bacy10_pending_cloud_turns_v1';
   static bool _flushing = false;
 
+  static bool _luhnValid(String raw) {
+    final digits = raw.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 13 || digits.length > 19) return false;
+    var sum = 0;
+    var alternate = false;
+    for (var i = digits.length - 1; i >= 0; i--) {
+      var n = int.parse(digits[i]);
+      if (alternate) { n *= 2; if (n > 9) n -= 9; }
+      sum += n;
+      alternate = !alternate;
+    }
+    return sum % 10 == 0;
+  }
+
+  static bool containsSecret(String value) {
+    final patterns = RegExp(
+      r'password|passphrase|api.?key|secret|bank.?pin|cvv|one.time.password|\botp\b|'
+      r'-----BEGIN (?:RSA |EC |OPENSSH |PRIVATE )?PRIVATE KEY-----|'
+      r'\b(?:sk|rk)-[A-Za-z0-9_-]{20,}\b|\bgh[pousr]_[A-Za-z0-9]{20,}\b|'
+      r'\bAIza[0-9A-Za-z_-]{30,}\b|\bAKIA[0-9A-Z]{16}\b|'
+      r'\bBearer\s+[A-Za-z0-9._~+/-]{20,}|'
+      r'\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b',
+      caseSensitive: false);
+    if (patterns.hasMatch(value)) return true;
+    return RegExp(r'(?:\d[ -]?){13,19}').allMatches(value)
+        .any((match) => _luhnValid(match.group(0)!));
+  }
+
+
   static Future<http.Response?> request(
       String method, String path, [Map<String, dynamic>? body]) async {
     if (!await PairingTokenClient.hasPairingCode()) return null;
@@ -78,10 +107,8 @@ class BacyCloudMemory {
 
   static Future<void> appendTurn(Map<String,dynamic> turn) async {
     final text=(turn['text']??'').toString().trim();
-    if (text.isEmpty || text.length>3000 ||
-        RegExp(r'password|passphrase|api.?key|bank.?pin|cvv|\botp\b',
-           caseSensitive:false).hasMatch(text)) return;
-    final id=(turn['id']??'').toString();
+    if (text.isEmpty || text.length>3000 || containsSecret(text)) return;
+        final id=(turn['id']??'').toString();
     final role=(turn['role']??'').toString();
     if (id.isEmpty || (role!='user' && role!='assistant')) return;
     final list=await _pending();
@@ -174,8 +201,7 @@ METHODS = r'''
     if(key.isEmpty||item.isEmpty||key.length>65||item.length>1300){
       return 'Use a shorter name and memory detail.';
     }
-    if(RegExp(r'password|passphrase|secret|api.?key|bank.?pin|otp|cvv',
-        caseSensitive:false).hasMatch(key+' '+item)){
+    if(BacyCloudMemory.containsSecret(key+' '+item)){
       return 'I will not store passwords, PINs or secret codes.';
     }
     final facts=await _local();
