@@ -158,6 +158,8 @@ jobs:
               assert sensitive_term in accessibility.lower()
           assert "GmailTools" in agent
           assert "list_latest_email_subjects" in (root/"agent/src/gmail_tools.py").read_text()
+          wake=(root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyWakeListener.kt").read_text().lower()
+          assert "hey bacy" in wake and "hey enzo" not in wake and "hey bro" not in wake
           assert "LIVEKIT_SANDBOX_ID" not in mobile
           assert "LIVEKIT_TOKEN_ENDPOINT=" in (root/"mobile/assets/.env").read_text()
           print("SOURCE VALIDATION PASSED: real agent, browser tools, web app, Flutter mobile and safe templates")
