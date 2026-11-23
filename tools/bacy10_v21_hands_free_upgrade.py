@@ -44,16 +44,26 @@ class BacyWakeListener(private val activity: Activity, engine: FlutterEngine) {
                 try {
                     when (call.method) {
                         "startWake" -> {
-                            BacyWakeService.voiceCallActive = false
+                            val prefs = activity.getSharedPreferences("bacy10_permissions", Context.MODE_PRIVATE)
+                            val enabled = prefs.getBoolean("handsfree_enabled", false)
                             val granted = activity.checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
                                 PackageManager.PERMISSION_GRANTED
-                            if (!granted) {
-                                activity.requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 8011)
-                                result.success("Allow microphone once in Android's permission popup.")
+                            if (!enabled) {
+                                result.success("Hands-free wake is off. Enable it from the hands-free permissions panel.")
+                            } else if (!granted) {
+                                result.success("Microphone permission is missing. Re-enable hands-free from its permissions panel.")
                             } else {
+                                BacyWakeService.voiceCallActive = false
                                 BacyWakeService.start(activity)
-                                result.success("Background wake detection is on, while Android permits it.")
+                                result.success("Hands-free wake is active while Android permits it.")
                             }
+                        }
+                        "disableWake" -> {
+                            activity.getSharedPreferences("bacy10_permissions", Context.MODE_PRIVATE)
+                                .edit().putBoolean("handsfree_enabled", false).apply()
+                            BacyWakeService.voiceCallActive = true
+                            BacyWakeService.stop(activity)
+                            result.success("Hands-free wake is off.")
                         }
                         "pauseWake", "stopWake" -> {
                             BacyWakeService.voiceCallActive = true
@@ -73,9 +83,13 @@ class BacyWakeListener(private val activity: Activity, engine: FlutterEngine) {
                                 "batteryUnrestricted" to (Build.VERSION.SDK_INT < 23 ||
                                     power.isIgnoringBatteryOptimizations(activity.packageName)),
                                 "speechRecognizerAvailable" to android.speech.SpeechRecognizer.isRecognitionAvailable(activity),
-                                "wakeServiceRunning" to BacyWakeService.running))
+                                "wakeServiceRunning" to BacyWakeService.running,
+                                "handsfreeEnabled" to activity.getSharedPreferences("bacy10_permissions", Context.MODE_PRIVATE)
+                                    .getBoolean("handsfree_enabled", false)))
                         }
                         "requestWakePermissions" -> {
+                            val prefs = activity.getSharedPreferences("bacy10_permissions", Context.MODE_PRIVATE)
+                            prefs.edit().putBoolean("handsfree_enabled", true).apply()
                             val needs = mutableListOf<String>()
                             if (activity.checkSelfPermission(Manifest.permission.RECORD_AUDIO) !=
                                 PackageManager.PERMISSION_GRANTED) needs.add(Manifest.permission.RECORD_AUDIO)
@@ -85,11 +99,11 @@ class BacyWakeListener(private val activity: Activity, engine: FlutterEngine) {
                                 needs.add(Manifest.permission.POST_NOTIFICATIONS)
                             if (needs.isNotEmpty()) {
                                 activity.requestPermissions(needs.toTypedArray(), 8011)
-                                result.success("Allow microphone and notification permissions.")
+                                result.success("Allow microphone and notification permissions to enable hands-free wake.")
                             } else {
                                 BacyWakeService.voiceCallActive = false
                                 BacyWakeService.start(activity)
-                                result.success("Hands-free wake service requested.")
+                                result.success("Hands-free wake is enabled.")
                             }
                         }
                         "batterySettings" -> {
@@ -173,7 +187,8 @@ class BacyWakeService : Service() {
         @Volatile var running: Boolean = false
 
         fun start(context: Context) {
-            if (voiceCallActive) return
+            val prefs = context.getSharedPreferences("bacy10_permissions", Context.MODE_PRIVATE)
+            if (!prefs.getBoolean("handsfree_enabled", false) || voiceCallActive) return
             if (Build.VERSION.SDK_INT >= 23 &&
                 context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) !=
                     PackageManager.PERMISSION_GRANTED) return
@@ -227,8 +242,14 @@ class BacyWakeService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val prefs = getSharedPreferences("bacy10_permissions", Context.MODE_PRIVATE)
         if (intent?.action == ACTION_STOP) {
+            prefs.edit().putBoolean("handsfree_enabled", false).apply()
             voiceCallActive = true
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        if (!prefs.getBoolean("handsfree_enabled", false)) {
             stopSelf()
             return START_NOT_STICKY
         }
@@ -505,6 +526,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with WidgetsBindingObserv
       final battery = current?['batteryUnrestricted'] == true;
       final recognizer = current?['speechRecognizerAvailable'] == true;
       final active = current?['wakeServiceRunning'] == true;
+      final enabled = current?['handsfreeEnabled'] == true;
       await showDialog<void>(
         context: context,
         builder: (dialog) => AlertDialog(
@@ -519,7 +541,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> with WidgetsBindingObserv
             '\nBattery: ' + (battery ? 'Unrestricted' : 'Restricted') +
             '\nSpeech recognition: ' + (recognizer ? 'Available' : 'Not available') +
             '\nWake listening: ' + (active ? 'Running' : 'Not running') +
-            '\n\nFor background activation, allow these permissions once. '
+            '\nHands-free setting: ' + (enabled ? 'Enabled' : 'Off') +
+            '\n\nWake detection uses Android speech recognition (on-device when available; otherwise the system provider may process audio). '
+            'A persistent notification appears while listening. You can turn it off here or from that notification. '
             'Android may still restrict wake detection with the screen locked.',
             style: const TextStyle(
               height: 1.5, color: Color(0xFFC7D4E6), fontSize: 13),
@@ -532,7 +556,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with WidgetsBindingObserv
                   await _native.invokeMethod<String>('requestWakePermissions');
                 } catch (_) {}
               },
-              child: const Text('Allow permissions'),
+              child: Text(active ? 'Refresh permissions' : 'Enable hands-free'),
             ),
             TextButton(
               onPressed: () async {
@@ -542,6 +566,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> with WidgetsBindingObserv
                 } catch (_) {}
               },
               child: const Text('Battery settings'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(dialog);
+                try { await _native.invokeMethod<String>('disableWake'); } catch (_) {}
+                if (mounted) setState(() => status = 'Hands-free wake is off.');
+              },
+              child: const Text('Turn off wake listening'),
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialog),
@@ -697,21 +729,17 @@ def apply(root: Path):
         '''    override fun onResume() {
         super.onResume()
         val prefs = getSharedPreferences("bacy10_permissions", MODE_PRIVATE)
+        val enabled = prefs.getBoolean("handsfree_enabled", false)
         val microphoneMissing =
             checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) !=
                 android.content.pm.PackageManager.PERMISSION_GRANTED
         val noticeMissing = android.os.Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
                 android.content.pm.PackageManager.PERMISSION_GRANTED
-        if ((microphoneMissing || noticeMissing) &&
-            !prefs.getBoolean("handsfree_permissions_requested", false)) {
-            prefs.edit().putBoolean("handsfree_permissions_requested", true).apply()
-            val permissions = mutableListOf<String>()
-            if (microphoneMissing) permissions.add(android.Manifest.permission.RECORD_AUDIO)
-            if (noticeMissing) permissions.add(android.Manifest.permission.POST_NOTIFICATIONS)
-            requestPermissions(permissions.toTypedArray(), 8011)
-        } else if (!microphoneMissing && !BacyWakeService.voiceCallActive) {
+        if (enabled && !microphoneMissing && !noticeMissing && !BacyWakeService.voiceCallActive) {
             BacyWakeService.start(this)
+        } else if (!enabled || microphoneMissing || noticeMissing) {
+            BacyWakeService.stop(this)
         }
     }
 
@@ -719,10 +747,21 @@ def apply(root: Path):
         requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 8011 &&
-            checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
-                android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            BacyWakeService.start(this)
+        if (requestCode == 8011) {
+            val prefs = getSharedPreferences("bacy10_permissions", MODE_PRIVATE)
+            val enabled = prefs.getBoolean("handsfree_enabled", false)
+            val micGranted = checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+            val noticeGranted = android.os.Build.VERSION.SDK_INT < 33 ||
+                checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (enabled && micGranted && noticeGranted) {
+                BacyWakeService.voiceCallActive = false
+                BacyWakeService.start(this)
+            } else {
+                prefs.edit().putBoolean("handsfree_enabled", false).apply()
+                BacyWakeService.stop(this)
+            }
         }
     }
 
