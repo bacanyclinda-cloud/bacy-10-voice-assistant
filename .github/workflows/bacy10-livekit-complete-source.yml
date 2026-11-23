@@ -99,8 +99,11 @@ jobs:
           assert "Voice 3" in (root/"mobile/lib/screens/agent_screen.dart").read_text()
           prompt=(root/"agent/src/prompts.py").read_text()
           for instructions in (agent,prompt):
-              assert "BACY-10 owner instruction and personality recovery" in instructions
-              assert "Follow harmless, lawful and authorised owner requests" in instructions
+              assert "BACY-10 owner-first service, personality and instruction recovery" in instructions
+              assert "DEFAULT YES — MAXIMUM COOPERATION" in instructions
+              assert "Do not turn conversations into explanations about your guidelines" in instructions
+              assert "Do not invent extra limits" in instructions
+              assert "BW Silinda is your creator and owner" in instructions
               assert "clear reasoned view" in instructions
               assert "# Owner-first boundaries" in instructions
               assert "Protect private information" in instructions
