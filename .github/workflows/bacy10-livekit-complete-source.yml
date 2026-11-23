@@ -165,6 +165,8 @@ jobs:
           on_resume=activity.split("override fun onResume()",1)[1].split("override fun onRequestPermissionsResult",1)[0]
           assert "requestPermissions" not in on_resume
           assert "handsfree_enabled" in activity and "handsfree_enabled" in wake_service
+          assert "POST_NOTIFICATIONS" in wake_service
+          assert "BacyVoiceService.running" in (root/"tools/bacy10_v21_hands_free_upgrade.py").read_text()
           assert "disableWake" in activity
           welcome=(root/"mobile/lib/screens/welcome_screen.dart").read_text()
           assert "Turn off wake listening" in welcome
