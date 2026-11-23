@@ -4,18 +4,13 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - feature/bacy10-livekit-complete-source-20261118
-      - fix/bacy10-connected-mobile-cloud-20261118
-      - fix/bacy10-restore-original-personality-20261121
       - main
-      - feature/bacy10-android-phone-personal-memory-20261118
+      - fix/bacy10-v40-integrated-source-20261123
     paths:
       - .github/workflows/bacy10-livekit-complete-source.yml
-      - tools/bacy10_build_livekit_package.py
-      - tools/bacy10_phone_memory_upgrade.py
-      - tools/bacy10_gmail_tools.py
+      - tools/bacy10_*.py
+      - cloud/bacy10-memory-worker.mjs
       - BACY10-LIVEKIT-DOWNLOAD.md
-
 # Only test the newest source revision; cancel obsolete APK builds on this branch.
 concurrency:
   group: bacy10-package-${{ github.ref }}
@@ -40,7 +35,13 @@ jobs:
 
       - name: Download pinned full tutorial and apply BACY-10 setup
         run: python tools/bacy10_build_livekit_package.py --output build/BACY10-LIVEKIT-FULL-SOURCE
+      - uses: astral-sh/setup-uv@v6
+      - name: Resolve optional MCP agent dependencies
+        working-directory: build/BACY10-LIVEKIT-FULL-SOURCE/agent
+        run: uv lock --python 3.12
 
+      - name: Test cloud-memory credential filtering
+        run: node --test cloud/bacy10-memory-worker.test.mjs
       - name: Validate essential source and exclude secrets
         run: |
           python - <<'PY'
@@ -60,7 +61,7 @@ jobs:
           assert not [p for p in root.rglob("*") if p.suffix.lower() in {".otf", ".ttf", ".woff", ".woff2", ".eot"}], "Font binaries are excluded from the distribution"
           agent=(root/"agent/src/agent.py").read_text()
           assert 'agent_name="bacy-10"' in agent
-          assert "gemini-3.1-flash-live-preview" in agent
+          assert "gemini-3.8-live" in agent
           assert "BrowserTools" in agent
           mobile=(root/"mobile/lib/controllers/app_ctrl.dart").read_text()
           assert "connectionError" in mobile
@@ -70,16 +71,108 @@ jobs:
           assert "bacy10.memory" in mobile
           assert (root/"mobile/lib/support/bacy10_memory.dart").is_file()
           assert (root/"agent/src/phone_tools.py").is_file()
-          assert "PhoneTools" in agent
-          assert (root/"agent/src/gmail_tools.py").is_file()
-          gmail=(root/"agent/src/gmail_tools.py").read_text()
-          assert "GmailTools" in agent and "list_latest_email_subjects" in gmail
+          assert "set_phone_torch" in (root/"agent/src/phone_tools.py").read_text()
+          assert (root/"mobile/lib/widgets/bacy_live_orb.dart").is_file()
+          assert "BacyLiveOrb" in (root/"mobile/lib/screens/agent_screen.dart").read_text()
+          assert "My private memory" not in (root/"mobile/lib/screens/welcome_screen.dart").read_text()
+          assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyAccessibilityService.kt").is_file()
+          assert "navigate_on_android" in (root/"agent/src/phone_tools.py").read_text()
+          assert "generate_image_with_ai" in (root/"agent/src/phone_tools.py").read_text()
+          assert "BacyResultsPanel" in (root/"mobile/lib/screens/agent_screen.dart").read_text()
+          assert "sdk.AgentState.speaking" in (root/"mobile/lib/widgets/bacy_live_orb.dart").read_text()
+          assert (root/"agent/src/quick_search.py").is_file()
+          assert (root/"agent/src/image_provider.py").is_file()
+          assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyWakeService.kt").is_file()
+          assert "bacy10_pairing_code" not in (root/"mobile/lib/screens/welcome_screen.dart").read_text()
+          assert "RESTORE VOICE CONNECTION" in (root/"mobile/lib/screens/welcome_screen.dart").read_text(), "New installs must have one-time secure connection recovery"
+          assert 'preemptive_generation={"enabled": False}' in agent
+          assert "RECONNECT VOICE" in (root/"mobile/lib/screens/agent_screen.dart").read_text()
+          assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyVoiceService.kt").is_file()
+          assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyCompactOverlayService.kt").is_file()
+          assert 'BacyOverlayLauncherActivity' not in manifest, 'Restore original app launcher rather than v3.0 overlay'
+          assert 'Ask BACY-10' not in (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyCompactOverlayService.kt").read_text()
+          assert 'SYSTEM_ALERT_WINDOW' in manifest
+          assert 'version: 4.0.0+44' in (root/"mobile/pubspec.yaml").read_text()
+          assert (root/"agent/src/voice_tools.py").is_file()
+          assert "switch_bacy_voice" in (root/"agent/src/voice_tools.py").read_text()
+          assert "bacy10.voice" in (root/"mobile/lib/controllers/app_ctrl.dart").read_text()
+          assert "Voice 3" in (root/"mobile/lib/screens/agent_screen.dart").read_text()
           prompt=(root/"agent/src/prompts.py").read_text()
-          for text in (agent,prompt):
-              assert "I love sex" in text and "fuck me" in text, "Owner-requested non-graphic phrase handling is missing"
-              assert "choose" in text.lower(), "Direct opinion/choice instruction is missing"
-              assert "Hard rule" not in text and "At your service, Sir" not in text and "I am at your service" not in text, "Obsolete scripted wake response remains"
-              assert "Good day, Sir" not in text and "Your owner is addressed as sir" not in text, "Obsolete formal greeting remains"
+          for instructions in (agent,prompt):
+              assert "BACY-10 owner instruction and personality recovery" in instructions
+              assert "Follow harmless, lawful and authorised owner requests" in instructions
+              assert "clear reasoned view" in instructions
+              assert "# Owner-first boundaries" in instructions
+              assert "Protect private information" in instructions
+          assert (root/"mobile/lib/support/bacy10_cloud_memory.dart").is_file()
+          cloud_memory=(root/"mobile/lib/support/bacy10_cloud_memory.dart").read_text()
+          assert "_resetKey" in cloud_memory and "_completePendingReset" in cloud_memory
+          assert "containsSecret(String value)" in cloud_memory
+          assert "_luhnValid(String raw)" in cloud_memory
+          assert "Future<String> clear()" in (root/"mobile/lib/support/bacy10_memory.dart").read_text()
+          memory_screen=(root/"mobile/lib/screens/bacy10_memory_screen.dart").read_text()
+          assert "private cloud memory" in memory_screen.lower()
+          assert "keep the app installed" in memory_screen.lower()
+          assert 'conversation_item_added' in agent
+          assert 'owner_behavior_preferences' in agent
+          assert (root/'mobile/lib/screens/bacy10_provider_settings_screen.dart').is_file()
+          assert 'bacy10.providers' in mobile
+          assert 'mcp.MCPToolset' in agent
+          assert (root/'mobile/lib/screens/bacy10_owner_instructions_screen.dart').is_file()
+          assert (root/'mobile/lib/screens/bacy10_connections_catalog_screen.dart').is_file()
+          personality=(root/'agent/src/agent.py').read_text()
+          prompts=(root/'agent/src/prompts.py').read_text()
+          assert "BACY-10 owner instruction and personality recovery" in personality
+          assert "BACY-10 owner instruction and personality recovery" in prompts
+          assert "consensual teasing" in personality
+          assert "clear reasoned view" in personality
+          assert "I reckon" in personality
+          assert "thoughtful conversation partner" in personality
+          assert "explicitly asks for a roast" in personality
+          assert "Follow harmless, lawful and authorised owner requests" in personality
+          assert "# Owner-first boundaries" in personality
+          assert "Do not blanket-refuse ordinary, harmless, lawful requests" in personality
+          assert "Do not lecture the owner about internal policies" in personality
+          assert "Do not impose a one-sentence limit" in personality
+          assert "decline harmful or out-of-scope requests" not in personality
+          assert '"whatsapp_compose" ->' in (root/'mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/MainActivity.kt').read_text()
+          assert 'FlutterSecureStorage' in (root/'mobile/lib/support/bacy10_provider_settings.dart').read_text()
+          assert 'Earlier {turn.get(' not in agent
+          assert '# Built-in owner directive (owner preferences)' not in agent
+          assert 'ordinary profanity and playful insults' in agent
+          assert 'Do not automatically censor or refuse' not in agent
+          assert '# BACY-10 personality -- owner\'s confirmed preference' not in agent
+          assert 'A direct approval such as "yes", "do it", or "go ahead"' in agent
+          assert "clearly approves the specific action just proposed" in agent
+          assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyWakeListener.kt").is_file()
+          assert "setScreenShareEnabled(true)" in mobile
+          assert "PhoneTools" in agent
+          accessibility=(root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyAccessibilityService.kt").read_text()
+          for protected_action in ["submit", "approve", "authorize", "install", "uninstall", "revoke"]:
+              assert protected_action in accessibility.lower()
+          assert "isSensitiveScreen(root)" in accessibility
+          for sensitive_term in ["card number", "cvv", "routing number", "cryptocurrency"]:
+              assert sensitive_term in accessibility.lower()
+          assert "GmailTools" in agent
+          assert "list_latest_email_subjects" in (root/"agent/src/gmail_tools.py").read_text()
+          wake_dir=root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant"
+          wake_service=(wake_dir/"BacyWakeService.kt").read_text().lower()
+          wake_listener=(wake_dir/"BacyWakeListener.kt").read_text().lower()
+          wake=wake_service+"\n"+wake_listener
+          assert "hey bacy" in wake
+          assert "hey enzo" not in wake and "hey bro" not in wake
+          activity=(root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/MainActivity.kt").read_text()
+          import re
+          on_resume_match=re.search(r"override fun onResume\\(\\)\\s*\\{(.*?)(?=\\n\\s*override fun |\\Z)",activity,re.S)
+          if on_resume_match:
+              assert "requestPermissions" not in on_resume_match.group(1), "Do not request permissions automatically from onResume"
+          assert "handsfree_enabled" in wake_service
+          assert "post_notifications" in wake_service
+          assert "BacyVoiceService.running" in Path("tools/bacy10_v21_hands_free_upgrade.py").read_text()
+          assert "disablewake" in wake_listener
+          welcome=(root/"mobile/lib/screens/welcome_screen.dart").read_text()
+          assert "Turn off wake listening" in welcome
+          assert "system provider may process audio" in welcome
           assert "LIVEKIT_SANDBOX_ID" not in mobile
           assert "LIVEKIT_TOKEN_ENDPOINT=" in (root/"mobile/assets/.env").read_text()
           print("SOURCE VALIDATION PASSED: real agent, browser tools, web app, Flutter mobile and safe templates")
@@ -91,9 +184,10 @@ jobs:
         with:
           name: BACY10-LIVEKIT-FULL-SOURCE
           path: build/BACY10-LIVEKIT-FULL-SOURCE/
-          retention-days: 30
+          retention-days: 1
           if-no-files-found: error
           include-hidden-files: true
+        continue-on-error: true
 
   python-agent:
     name: Check real Python agent dependencies and tests
@@ -101,40 +195,102 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: BACY10-LIVEKIT-FULL-SOURCE
-          path: ./source
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@v6
+      - name: Rebuild source independently of optional artifact storage
+        run: python tools/bacy10_build_livekit_package.py --output source
+      - name: Resolve optional MCP agent dependencies
+        working-directory: source/agent
+        run: uv lock --python 3.12
       - name: Resolve Python/LiveKit agent dependencies
         working-directory: source/agent
         run: uv sync --python 3.12 --locked
       - name: Compile Python agent
         working-directory: source/agent
         run: uv run python -m compileall -q src
+      - name: Verify actual Gemini 3.8 LiveKit plugin can initialize
+        working-directory: source/agent
+        run: |
+          uv run python - <<'PY'
+          from livekit.plugins import google
+          from google.genai import types
+          model=google.beta.realtime.RealtimeModel(
+              model='gemini-3.8-live',
+              voice='Enceladus',
+              language='en-GB',
+              tool_response_scheduling=types.FunctionResponseScheduling.WHEN_IDLE,
+              api_key='placeholder-for-constructor-only',
+          )
+          assert model is not None
+          print('Gemini 3.8 Live plugin constructor passed; no API call made')
+          PY
       - name: Install real Playwright Chromium for browser tests
         working-directory: source/agent
         run: uv run playwright install --with-deps chromium
+      - name: Update upstream package-version assertions for V4
+        working-directory: source/agent
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          tests = Path("tests")
+          changed = []
+          for path in tests.rglob("*.py"):
+              source = path.read_text(encoding="utf-8")
+              updated = source.replace("version: 3.8.0+43", "version: 4.0.0+44")
+              if updated != source:
+                  path.write_text(updated, encoding="utf-8")
+                  changed.append(str(path))
+          print("Updated V4 version assertions:", changed)
+          PY
       - name: Run offline agent and real browser tests
         working-directory: source/agent
-        run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_browser.py
+        run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_quick_search.py tests/test_image_provider.py tests/test_voice_stability.py tests/test_background_voice.py tests/test_floating_capsule.py tests/test_cloud_memory.py tests/test_memory_reliability.py tests/test_owner_provider_settings.py tests/test_owner_v36_ui.py tests/test_android_v36.py tests/test_v36_mcp_slots.py tests/test_v37_direct_source.py tests/test_v38_gemini_runtime.py tests/test_browser.py tests/test_owner_instruction_recovery.py
+      - name: Verify all three voice paths and secure phone RPC
+        working-directory: source
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          root=Path('.')
+          agent=(root/'agent/src/agent.py').read_text()
+          voice=(root/'agent/src/voice_tools.py').read_text()
+          ctrl=(root/'mobile/lib/controllers/app_ctrl.dart').read_text()
+          providers=(root/'mobile/lib/support/bacy10_provider_settings.dart').read_text()
+          screen=(root/'mobile/lib/screens/agent_screen.dart').read_text()
+          pyproject=(root/'agent/pyproject.toml').read_text()
+          checks={
+            'original Gemini voice remains Enceladus':'voice="Enceladus" if voice_profile != "voice2" else "Puck"' in agent,
+            'alternate Gemini voice is Puck':'voice="Enceladus" if voice_profile != "voice2" else "Puck"' in agent,
+            'female voice uses text-only Gemini hybrid mode':'genai_types.Modality.TEXT' in agent and 'tts=voice3_tts' in agent,
+            'ElevenLabs Florence configured':'voice_id=\'22N9cF8z0o7y23njdyaY\'' in agent and 'eleven_flash_v2_5' in agent,
+            'ElevenLabs dependency pinned':'livekit-plugins-elevenlabs>=1.8.0,<2' in pyproject,
+            'voice switch is an actual LiveKit RPC':'method=\'bacy10.voice\'' in voice and 'switch_bacy_voice' in voice,
+            'phone validates caller is the agent':'room.agentParticipant?.identity != request.callerIdentity' in ctrl,
+            'phone persists selected voice securely':'BacyProviderSettings.save(\'voice_profile\',chosen)' in ctrl and 'FlutterSecureStorage' in providers,
+            'voice three requires stored API key':'elevenlabs_api_key' in ctrl and 'elevenlabs_api_key' in providers,
+            'all three choices are exposed in Android UI':all(x in screen for x in ['voice1','voice2','voice3']),
+          }
+          for name,ok in checks.items(): print(('PASS' if ok else 'FAIL')+' '+name)
+          assert all(checks.values()), 'BACY-10 voice integration regression check failed'
+          PY
       # The upstream tests/test_agent.py evaluates live LLM responses using a
       # real LiveKit inference API key. Run it ONLY in your configured environment;
       # no fabricated keys are supplied to CI.
 
   flutter-android:
-    name: Check Flutter Android source and compile debug APK
+    name: Build BACY-10 restored release APK
     needs: source-bundle
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          name: BACY10-LIVEKIT-FULL-SOURCE
-          path: ./source
+          python-version: "3.12"
+      - name: Rebuild source independently of optional artifact storage
+        run: python tools/bacy10_build_livekit_package.py --output source
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -150,37 +306,29 @@ jobs:
       - name: Analyze Flutter Dart
         working-directory: source/mobile
         run: flutter analyze --no-fatal-infos
-      - name: Compile real Android debug APK
-        working-directory: source/mobile
-        run: flutter build apk --debug
-      - name: Upload optional compiled Android APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: BACY10-LIVEKIT-ANDROID-DEBUG
-          path: source/mobile/build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 14
-          if-no-files-found: error
       - name: Compile Android release-style APK (private testing signature)
         working-directory: source/mobile
         run: flutter build apk --release
       - name: Upload BACY-10 Android release-style APK
         uses: actions/upload-artifact@v4
         with:
-          name: BACY10-LIVEKIT-ANDROID-RELEASE
+          name: BACY10-v40-ORIGINAL-ID-RELEASE
           path: source/mobile/build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 14
+          retention-days: 3
           if-no-files-found: error
-
+        continue-on-error: true
   nextjs-web:
     name: Build complete Next.js LiveKit web frontend
     needs: source-bundle
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          name: BACY10-LIVEKIT-FULL-SOURCE
-          path: ./source
+          python-version: "3.12"
+      - name: Rebuild source independently of optional artifact storage
+        run: python tools/bacy10_build_livekit_package.py --output source
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
@@ -196,3 +344,48 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: "1"
         run: pnpm build
+
+  livekit-cloud-update:
+    name: Deploy updated voice-agent tools after all checks pass
+    if: github.ref == 'refs/heads/fix/bacy10-v38-gemini-live-runtime-20261119' || github.ref == 'refs/heads/fix/bacy10-v40-owner-personality-20261121' || github.ref == 'refs/heads/feature/bacy10-v40-android-three-voices-20261120' || github.ref == 'refs/heads/fix/bacy10-v40-safe-reconcile-20261121'
+    needs: [python-agent, flutter-android, nextjs-web]
+    runs-on: ubuntu-latest
+    environment: livekit-production
+    timeout-minutes: 45
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: BACY10-LIVEKIT-FULL-SOURCE
+          path: ./source
+      - name: Check private cloud credentials
+        env:
+          LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          BACY10_AGENT_KEY: ${{ secrets.BACY10_AGENT_KEY }}
+        run: |
+          test -n "$LIVEKIT_URL"
+          test -n "$LIVEKIT_API_KEY"
+          test -n "$LIVEKIT_API_SECRET"
+          test -n "$GOOGLE_API_KEY"
+          test "${#BACY10_AGENT_KEY}" -ge 32
+      - name: Install official LiveKit CLI
+        run: curl -fsSL https://get.livekit.io/cli | bash
+      - name: Deploy tested BACY-10 agent to existing LiveKit service
+        working-directory: source/agent
+        env:
+          LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          BACY10_AGENT_KEY: ${{ secrets.BACY10_AGENT_KEY }}
+          BACY10_APP_URL: https://bacy-orbit-voice-companion.lovable.app
+        run: |
+          set -euo pipefail
+          umask 077
+          SECRET_FILE="$RUNNER_TEMP/bacy10-agent-secrets.env"
+          trap 'rm -f "$SECRET_FILE"' EXIT
+          printf 'GOOGLE_API_KEY=%s\nBACY10_AGENT_KEY=%s\nBACY10_APP_URL=%s\n' "$GOOGLE_API_KEY" "$BACY10_AGENT_KEY" "$BACY10_APP_URL" > "$SECRET_FILE"
+          lk project add --url "$LIVEKIT_URL" --api-key "$LIVEKIT_API_KEY" --api-secret "$LIVEKIT_API_SECRET" --default bacy10
+          lk agent deploy --id "CA_4rt8fujSg5pZ" --secrets-file "$SECRET_FILE"

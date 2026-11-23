@@ -110,12 +110,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class BacyMemory {
   static const _storage = FlutterSecureStorage();
   static const _key = 'bacy10_private_profile_v1';
-  static const Map<String, String> _defaults = {
-    'name': 'BW Silinda',
-    'studies': 'UNISA student studying Foundation Phase teaching',
-    'projects': 'BACY-10 voice assistant, Loop Secure, ZORA South Africa, MBMF, ENZO Tools',
-    'interests': 'Android technology, AI assistants, building useful business software',
-  };
+  // No personal profile is hard-coded into the APK. Owner facts are loaded
+  // from the authenticated cloud memory after the phone is paired.
+  static const Map<String, String> _defaults = {};
 
   static Future<Map<String, String>> readAll() async {
     final stored = await _storage.read(key: _key);
@@ -221,7 +218,7 @@ class _BacyMemoryScreenState extends State<BacyMemoryScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete all personal memory?'),
-        content: const Text('This permanently removes the facts BACY-10 has saved on your phone.'),
+        content: const Text('This deletes saved facts and conversation history from your phone and private cloud memory. Keep the app installed and connected until cloud deletion is confirmed.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete memory')),
@@ -229,8 +226,10 @@ class _BacyMemoryScreenState extends State<BacyMemoryScreen> {
       ),
     );
     if (confirmed == true) {
-      await BacyMemory.clear();
+      final result = await BacyMemory.clear();
       await _load();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result)));
     }
   }
 

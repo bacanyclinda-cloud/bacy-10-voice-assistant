@@ -10,9 +10,9 @@ import { appendConversation, promptConversation, restoreConversation, serializeC
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "BACY-10 — Personal voice intelligence" },
+      { title: "Bacy 10 — Personal Voice Assistant" },
       { name: "description", content: "BACY-10. A private voice-first British assistant." },
-      { property: "og:title", content: "BACY-10 — Personal voice intelligence" },
+      { property: "og:title", content: "Bacy 10 — Personal Voice Assistant" },
       { property: "og:description", content: "A private voice-first British assistant, ready at your service." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

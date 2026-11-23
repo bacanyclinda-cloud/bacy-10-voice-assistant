@@ -58,6 +58,7 @@ jobs:
           lk project add --url "$LIVEKIT_URL" --api-key "$LIVEKIT_API_KEY" --api-secret "$LIVEKIT_API_SECRET" --default bacy10
           SECRET_FILE="$RUNNER_TEMP/bacy10-agent-secrets.env"
           umask 077
+          trap 'rm -f "$SECRET_FILE"' EXIT
           printf 'GOOGLE_API_KEY=%s\nBACY10_APP_URL=%s\nBACY10_AGENT_KEY=%s\n' "$GOOGLE_API_KEY" "$BACY10_APP_URL" "$BACY10_AGENT_KEY" > "$SECRET_FILE"
           cd build/BACY10-LIVEKIT-FULL-SOURCE/agent
           if [ "$OPERATION" = "create" ]; then
@@ -66,4 +67,3 @@ jobs:
             [ -n "$AGENT_ID" ] || { echo "agent_id required for deploy"; exit 1; }
             lk agent deploy --id "$AGENT_ID" --secrets-file "$SECRET_FILE"
           fi
-          rm -f "$SECRET_FILE"

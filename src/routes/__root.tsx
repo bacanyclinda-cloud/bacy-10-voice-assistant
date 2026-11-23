@@ -82,14 +82,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "BACY-10 | Personal Voice Assistant" },
-      { name: "description", content: "BACY-10, your personal British voice assistant." },
+      { title: "Bacy 10 | Personal Voice Assistant" },
+      { name: "description", content: "A private voice-first personal assistant with a natural British voice." },
       { name: "author", content: "BACY-10" },
-      { property: "og:title", content: "BACY-10 | Personal Voice Assistant" },
-      { property: "og:description", content: "Your personal British voice assistant, ready at your service." },
+      { property: "og:title", content: "Bacy 10 | Personal Voice Assistant" },
+      { property: "og:description", content: "A private voice-first personal assistant with connected tools and owner-controlled memory." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
       { name: "theme-color", content: "#071119" },
     ],
     links: [

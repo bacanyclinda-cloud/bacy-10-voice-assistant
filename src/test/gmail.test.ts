@@ -21,6 +21,24 @@ describe("BACY-10 Gmail", () => {
     const r = await listLatestEmails(3, {});
     expect(r).toEqual({ ok: false, status: 503, error: "Gmail is not connected to BACY-10." });
   });
+  it("caps requests to ten messages and applies a network timeout", async () => {
+    let requested = "";
+    let timeoutSignal: AbortSignal | undefined;
+    const fake = (async (url: string | URL | Request, init?: RequestInit) => {
+      requested = String(url);
+      timeoutSignal = init?.signal as AbortSignal | undefined;
+      return Response.json({ messages: [] });
+    }) as typeof fetch;
+    const result = await listLatestEmails(99, { LOVABLE_API_KEY: "x", GOOGLE_MAIL_API_KEY: "y" }, fake);
+    expect(result).toEqual({ ok: true, emails: [] });
+    expect(requested).toContain("maxResults=10");
+    expect(timeoutSignal).toBeDefined();
+  });
+  it("returns a safe result when the Gmail connector times out", async () => {
+    const failing = (async () => { throw new Error("Bearer private-token"); }) as unknown as typeof fetch;
+    const result = await listLatestEmails(3, { LOVABLE_API_KEY: "x", GOOGLE_MAIL_API_KEY: "y" }, failing);
+    expect(result).toEqual({ ok: false, status: 502, error: "Gmail could not be reached safely. Please try again." });
+  });
   it("parses subjects from a batch response", () => {
     expect(parseBatchResponse("multipart/mixed; boundary=b", batchBody(["One", "Two"])).map((e) => e.subject)).toEqual(["One", "Two"]);
   });

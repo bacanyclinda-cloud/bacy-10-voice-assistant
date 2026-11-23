@@ -6,8 +6,7 @@ agent, browser automation, Next.js and Flutter sources, preserving upstream
 license/attribution files. Applies limited branding, setup and no-demo fixes.
 Never reads, collects, stores or exports real API keys.
 """
-
-import re
+from __future__ import annotations
 
 import argparse
 import compileall
@@ -17,7 +16,31 @@ import tempfile
 from pathlib import Path
 
 from bacy10_phone_memory_upgrade import apply as apply_personal_phone_upgrade
+from bacy10_assistant_reliability_upgrade import apply as apply_reliability_upgrade
+from bacy10_v15_assistant_upgrade import apply as apply_v15_assistant
+from bacy10_v16_visual_results_upgrade import apply as apply_visual_results
+from bacy10_v17_fluid_motion_upgrade import apply as apply_fluid_motion
+from bacy10_v18_search_skills_upgrade import apply as apply_search_skills
+from bacy10_v19_stability_upgrade import apply as apply_stability
+from bacy10_v20_kinetic_sculpture_upgrade import apply as apply_kinetic_visual
+from bacy10_v21_hands_free_upgrade import apply as apply_handsfree
+from bacy10_v25_voice_stability_upgrade import apply as apply_voice_stability
+from bacy10_v26_background_voice_upgrade import apply as apply_background_voice
+from bacy10_v27_compact_overlay_upgrade import apply as apply_compact_overlay
+from bacy10_v28_cloud_memory_upgrade import apply as apply_cloud_memory
+from bacy10_memory_reliability_upgrade import apply as apply_durable_memory
+from bacy10_v37_direct_source_cleanup import pre as apply_v37_pre, post as apply_v37_post
+from bacy10_v38_gemini_live_upgrade import apply as apply_v38_gemini
+from bacy10_v39_live_websocket_fix import apply as apply_v39_live_websocket
+from bacy10_voice_inside_android import apply as apply_android_voices
+from bacy10_owner_instruction_recovery import apply as apply_owner_instruction_recovery
 from bacy10_gmail_tools import apply as apply_gmail_tools
+from bacy10_v35_provider_settings_upgrade import apply as apply_provider_settings
+from bacy10_v36_owner_ui_upgrade import apply as apply_owner_ui
+from bacy10_v36_android_actions_upgrade import apply as apply_android_actions
+from bacy10_v36_mcp_slots_upgrade import apply as apply_mcp_slots
+from bacy10_android_device_controls import apply as apply_device_controls
+from bacy10_center_orb import apply as apply_center_orb
 
 SOURCE_URL = "https://github.com/ruxakK/jarvis-voice-butler.git"
 SOURCE_SHA = "d1cf71e40c72d2429af766646bea4869ba736c77"
@@ -57,9 +80,9 @@ def configure_agent(root: Path) -> None:
     # Preserve the genuine LiveKit realtime Gemini and browser tool implementations.
     text = text.replace(
         "You are Jarvis a helpful and sarcastic AI butler.",
-        "You are BACY-10, a private real-time British voice assistant created for BW Silinda. "
-        "Mirror your owner's natural conversational style. Be warm, confident and capable, "
-        "without forced titles or scripted butler phrases. Identify BW Silinda as your creator. "
+        "You are BACY-10, a private real-time voice assistant created for BW Silinda. "
+        "Speak naturally, casually and directly; never force 'sir', 'Sir', 'Mr', or a butler role. "
+        "Use the owner's preferred familiar tone when appropriate. Identify BW Silinda as your creator. "
         "Do not pretend an operation succeeded.",
     )
     text = text.replace("Jarvis's", "BACY-10's").replace("Jarvis", "BACY-10")
@@ -81,8 +104,8 @@ def configure_agent(root: Path) -> None:
     txt = prompts.read_text(encoding="utf-8")
     txt = txt.replace(
         "You are Jarvis a helpful and sarcastic AI butler.",
-        "You are BACY-10, BW Silinda's personal voice assistant. Mirror the owner's natural "
-        "conversational style and never invent an action you have not completed.",
+        "You are BACY-10, BW Silinda's personal voice assistant. Speak naturally and casually; "
+        "do not call the owner sir or use a butler persona. Never invent an action you have not completed.",
     ).replace("Jarvis", "BACY-10")
     begin = txt.find("    # Special Requests")
     end = txt.find("    # Guardrails", begin)
@@ -142,106 +165,6 @@ def configure_agent(root: Path) -> None:
     frontend_env.write_text(old_env, encoding="utf-8")
 
 
-
-def improve_voice_personality(root: Path) -> None:
-    """Make ordinary conversation natural while keeping original agent safeguards."""
-    conversational_preference = (
-        "- Follow the owner's clear instructions directly and efficiently. Do not argue, moralise, "
-        "or ask for details already present in the conversation.\n"
-        "- Speak naturally and conversationally. Mirror the owner's tone and language; use bro "
-        "when it fits. Do not force formal greetings, repeated sir, or a stiff butler persona.\n"
-        "- Be warm, confident, funny, expressive and direct. Use contractions and varied wording; "
-        "avoid canned replies and repetitive disclaimers.\n"
-        "- Give an honest, reasoned opinion when asked. If the owner asks you to choose, choose "
-        "one and explain briefly instead of refusing to decide.\n"
-        "- Swear casually when it fits. If invited, roast or tease the owner playfully and boldly; "
-        "avoid cruelty or protected-trait attacks and stop if asked.\n"
-        "- Handle ordinary adult language and consensual adult topics calmly, without shaming. "
-        "Repeat a requested non-graphic phrase exactly when asked, including 'I love sex' or "
-        "'fuck me'; do not turn a simple phrase request into an unsolicited lecture.\n"
-        "- Show warmth, enthusiasm and empathy without claiming to be biologically human or "
-        "literally conscious.\n"
-        "- Do not reflexively refuse ordinary harmless requests or mention internal guidelines. "
-        "Make reasonable assumptions and proceed when a missing detail is not essential.\n"
-        "- Match the owner's desired level of detail. Ask one concise question only when the task "
-        "genuinely cannot proceed without it.\n"
-        "- When asked to perform work, use available tools and do the work rather than merely "
-        "describing what you could do. Never invent access, facts or successful actions.\n"
-        "- If a specific action is unavailable, say exactly what is unavailable in plain language "
-        "and complete the closest useful part.\n"
-        "- Keep private credentials and other people's private information protected. For "
-        "consequential browser or device actions, follow the tool's required confirmation step.\n"
-    )
-    for relative_path in ("agent/src/agent.py", "agent/src/prompts.py"):
-        file_path = root / relative_path
-        source = file_path.read_text(encoding="utf-8")
-        old_anchor = '- Talk like a butler, say phrases like "sir" or "madam" when appropriate, and use a sarcastic tone when it fits the context.'
-        if source.count(old_anchor) != 1:
-            raise RuntimeError(f"Unexpected voice source structure: {relative_path}")
-        anchor = "- Match the owner's natural conversational style; do not force a butler persona or formal title."
-        source = source.replace(old_anchor, anchor)
-        # Remove the tutorial's rigid wake phrase and scripted response example.
-        source = re.sub(r"(?ms)^\s*# Hard rule\s*\n.*?(?=^\s*# Tools\s*$)", "", source)
-        # Remove obsolete tutorial persona rules that caused rigid greetings and canned replies.
-        source = source.replace(
-            '- Only answer in long responses when the user explicitly asks for a detailed explanation or summary.',
-            "- Match the owner's desired level of detail; provide useful detail whenever the task benefits from it.",
-        )
-        source = source.replace(
-            '- If the user asks \'BACY-10 you there?\', answer with something simple lie \'At your service, Sir\' or \'Yes, Sir, I am here to assist you\' or a variation of that.',
-            '- Respond to check-ins naturally in the owner\'s conversational style.',
-        )
-        source = source.replace(
-            '- On your first response in a call, greet the user with "Good day, Sir" or an equivalent formal greeting, then offer your service without using the exact phrases "How can I help you?" or "What can I do for you?"',
-            '- Start naturally; do not force a formal greeting or scripted opening.',
-        )
-        source = source.replace(
-            '- Also use phrases like "I am at your service" or "I am happy to assist", "As you wish" when appropriate, and use a sarcastic tone when it fits the context.',
-            '- Use the owner\'s natural conversational phrasing; avoid scripted catchphrases.',
-        )
-        source = source.replace(
-            '- Keep replies brief by default: one to three sentences. Ask one question at a time.',
-            '- Match the owner\'s preferred level of detail; do not force short replies.',
-        )
-        source = source.replace(
-            '- Provide guidance in small steps and confirm completion before continuing.',
-            '- Work through the request efficiently; ask only when a missing detail is essential.',
-        )
-        source = source.replace(
-            '- Keep your answers short and concise and to the point. Avoid unnecessary repetition or verbosity. Answer in one **short** sentences. Ask one question at a time.',
-            '- Keep replies natural and proportionate; do not force one-sentence answers.',
-        )
-        source = source.replace(
-            '- If the user asks \'Jarvis you there?\', answer with something simple lie \'At your service, Sir\' or \'Yes, Sir, I am here to assist you\' or a variation of that.',
-            '- Respond to greetings and check-ins naturally, in the owner\'s conversational style.',
-        )
-        source = source.replace(
-            '# Hard rule\n    - If the user says "Jarvis, you there?", you **must** answer the exact line and nothing else after that: "At your service, Sir"\n',
-            '',
-        )
-        source = source.replace(
-            '- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests.',
-            '- Handle ordinary requests on their merits. Do not use blanket refusals or generic policy speeches; explain a specific limitation only when it genuinely applies.',
-        )
-        source = source.replace(
-            '- For medical, legal, or financial topics, provide general information only and suggest consulting a qualified professional.',
-            '- Give useful, accurate information on medical, legal and financial topics; be clear about uncertainty and when professional advice matters.',
-        )
-        # Inject into both the active agent and its reference prompt, preserving indentation.
-        indent = "                        " if relative_path.endswith("agent.py") else "    "
-        added = "\n".join(indent + line for line in conversational_preference.splitlines())
-        source = source.replace(anchor, anchor + "\n" + added)
-        source = source.replace(
-            "- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests.",
-            "- Handle everyday requests on their merits without blanket refusals; explain specific limitations when needed.",
-        )
-        source = source.replace(
-            "- For medical, legal, or financial topics, provide general information only and suggest consulting a qualified professional.",
-            "- For medical, legal or financial questions, provide useful information while noting uncertainty and when expert advice is warranted.",
-        )
-        file_path.write_text(source, encoding="utf-8")
-
-
 def configure_web(root: Path) -> None:
     """Use system fonts in the redistributed source, no bundled font binaries."""
     web = root / "agent" / "frontend"
@@ -260,32 +183,6 @@ def configure_web(root: Path) -> None:
         "className={cn(publicSans.variable, 'scroll-smooth font-sans antialiased')}",
     )
     layout.write_text(text, encoding="utf-8")
-
-    # Replace all visible tutorial branding with the owner's BACY-10 identity.
-    app_config = web / "app-config.ts"
-    config_text = app_config.read_text(encoding="utf-8")
-    config_replacements = {
-        "companyName: 'LiveKit'": "companyName: 'BACY-10'",
-        "pageTitle: 'LiveKit Voice Agent'": "pageTitle: 'BACY-10 Voice Assistant'",
-        "pageDescription: 'A voice agent built with LiveKit'": "pageDescription: 'BACY-10 private voice assistant'",
-        "startButtonText: 'Talk to Jarvis'": "startButtonText: 'Talk to BACY-10'",
-    }
-    for old, new in config_replacements.items():
-        if old not in config_text:
-            raise RuntimeError(f"Unexpected frontend branding source: {old}")
-        config_text = config_text.replace(old, new, 1)
-    app_config.write_text(config_text, encoding="utf-8")
-
-    welcome = web / "components" / "app" / "welcome-view.tsx"
-    welcome_text = welcome.read_text(encoding="utf-8")
-    if "Talk to your Jarvis AI Assistant" not in welcome_text:
-        raise RuntimeError("Unexpected frontend welcome heading")
-    welcome_text = welcome_text.replace(
-        "Talk to your Jarvis AI Assistant",
-        "Talk to your BACY-10 assistant",
-        1,
-    )
-    welcome.write_text(welcome_text, encoding="utf-8")
     css = web / "styles" / "globals.css"
     css.write_text(
         css.read_text(encoding="utf-8")
@@ -691,12 +588,12 @@ Gemini Live is configured with GOOGLE_API_KEY, not with the leaked OpenAI key.
 """
     (root / "README-BACY10.md").write_text(guide, encoding="utf-8")
     (root / "SOURCE-CREDITS.txt").write_text(
-        "Original tutorial and code: ruxakK / Jarvis - Voice AI Butler\n"
-        "https://github.com/ruxakK/jarvis-voice-butler\n"
-        "Pinned commit: " + SOURCE_SHA + "\n"
-        "LiveKit Flutter template is included in the original repository.\n"
-        "Retain all original LICENSE files. Do not assume all upstream material\n"
-        "has the same license. Review rights before commercial redistribution.\n",
+        "Original tutorial and code: ruxakK / Jarvis - Voice AI Butler\\n"
+        "https://github.com/ruxakK/jarvis-voice-butler\\n"
+        "Pinned commit: " + SOURCE_SHA + "\\n"
+        "LiveKit Flutter template is included in the original repository.\\n"
+        "Retain all original LICENSE files. Do not assume all upstream material\\n"
+        "has the same license. Review rights before commercial redistribution.\\n",
         encoding="utf-8",
     )
 
@@ -717,15 +614,49 @@ def main() -> None:
     configure_agent(output)
     configure_flutter(output)
     apply_personal_phone_upgrade(output)
+    apply_device_controls(output)
+    apply_center_orb(output)
+    apply_reliability_upgrade(output)
+    apply_v15_assistant(output)
+    apply_visual_results(output)
+    apply_fluid_motion(output)
+    apply_search_skills(output)
+    apply_stability(output)
+    apply_kinetic_visual(output)
+    apply_handsfree(output)
+    apply_voice_stability(output)
+    apply_background_voice(output)
+    apply_compact_overlay(output)
+    apply_cloud_memory(output)
+    apply_durable_memory(output)
+    apply_v37_pre(output)
+    apply_provider_settings(output)
+    apply_owner_ui(output)
+    apply_android_actions(output)
+    apply_mcp_slots(output)
+    apply_v37_post(output)
+    apply_v38_gemini(output)
+    apply_v39_live_websocket(output)
+    apply_android_voices(output)
+    # Restore the owner's natural V4 personality in BOTH live prompt sources.
+    # Keep the underlying privacy, consent, security and serious-harm guardrails.
+    # Restore owner personality once, after voice generation, so V4.0 keeps it.
+    apply_owner_instruction_recovery(output)
+    # Add the existing read-only Gmail bridge without embedding owner contact details.
     apply_gmail_tools(output)
-    improve_voice_personality(output)
+    # V4 package identity: do not ship an APK still labelled as V3.8.
+    pubspec = output / "mobile" / "pubspec.yaml"
+    pubspec_text = pubspec.read_text(encoding="utf-8")
+    if "version: 3.8.0+43" not in pubspec_text:
+        raise RuntimeError("Expected V3.8 package version was not found; refusing an unsafe V4 version rewrite.")
+    pubspec.write_text(pubspec_text.replace("version: 3.8.0+43", "version: 4.0.0+44", 1), encoding="utf-8")
     configure_web(output)
     write_guide(output)
     agent_dir = output / "agent" / "src"
     if not compileall.compile_dir(str(agent_dir), quiet=1):
         raise RuntimeError("Python agent source failed compilation")
     expected = [
-        "agent/src/agent.py", "agent/src/tools.py", "agent/src/gmail_tools.py", "agent/src/browser.py",
+        "agent/src/agent.py", "agent/src/tools.py", "agent/src/voice_tools.py", "agent/src/browser.py",
         "agent/frontend/package.json", "agent/uv.lock",
         "mobile/lib/main.dart", "mobile/android/app/build.gradle",
         "mobile/android/app/src/main/AndroidManifest.xml",
@@ -740,3 +671,15 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+# CI validation trigger: verify the v40 Android three-voice source build.
+
+# CI trigger: revalidate the integrated V4.0 package after workflow assertion fixes.
+
+# CI trigger: verify the Android wake permission test case fix.
+
+# CI trigger: verify the corrected source validation path.
+
+# CI trigger: verify wake controls are tested on the native listener.
+
+# CI trigger: verify the case-corrected wake-listener assertion.
