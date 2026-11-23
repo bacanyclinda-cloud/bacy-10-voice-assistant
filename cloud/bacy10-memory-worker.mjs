@@ -165,7 +165,7 @@ export default {async fetch(req,env){
     if(String(x.memory_epoch??"bacy-initial")!==epoch)
       return J({ok:true,ignored:"stale_memory_epoch"});
     if(mode==="resetting" || (mode==="ready" &&
-        await isRetired(env,"fact",key+String.fromCharCode(0)+value) && x.allow_readd!==true))
+        await isRetired(env,"fact",key+String.fromCharCode(0)+value)))
       return J({ok:true,ignored:"pre_reset_cached_fact"});
     if(value==="__BACY10_DELETED__"){
       const existing=await env.DB.prepare("SELECT value FROM memory_facts WHERE key=?").bind(key).first();
