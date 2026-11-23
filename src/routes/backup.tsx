@@ -50,7 +50,6 @@ function BackupStudio() {
   const fetchStatus = useServerFn(getBackupVoiceStatus);
 
   const [voice, setVoiceState] = useState<BackupVoice>("voice1");
-  const [expressive, setExpressive] = useState(false);
   const [capabilities, setCapabilities] = useState({ voice2: false, voice3: false });
   const [phase, setPhase] = useState<"idle" | "listening" | "thinking" | "speaking">("idle");
   const [message, setMessage] = useState("");
@@ -179,7 +178,7 @@ function BackupStudio() {
     setPhase("thinking");
     const history: ChatMessage[] = [...conversation.current, { role: "user", content: prompt }].slice(-12);
     try {
-      const answer = await ask({ data: { history, expressive } });
+      const answer = await ask({ data: { history } });
       if (!mounted.current) return;
       if (!("reply" in answer) || !answer.reply) {
         setError("error" in answer ? answer.error : "The assistant returned no answer.");
@@ -277,15 +276,6 @@ function BackupStudio() {
           </p>
           <p style={{ color: "#7fabbf", fontSize: 11 }}>
             Voice 2: {capabilities.voice2 ? "configured" : "not configured"} · ElevenLabs: {capabilities.voice3 ? "configured" : "needs API key"}
-          </p>
-        </section>
-        <section style={panel}>
-          <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
-            <input type="checkbox" checked={expressive} onChange={e => setExpressive(e.target.checked)} />
-            More expressive opinions and conversational warmth (optional)
-          </label>
-          <p style={{ fontSize: 11, color: "#9cb5ca" }}>
-            You can ask philosophical questions and get a reasoned choice. AI doesn't have human feelings.
           </p>
         </section>
         <section style={panel}>

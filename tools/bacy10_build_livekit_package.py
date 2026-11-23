@@ -6,7 +6,8 @@ agent, browser automation, Next.js and Flutter sources, preserving upstream
 license/attribution files. Applies limited branding, setup and no-demo fixes.
 Never reads, collects, stores or exports real API keys.
 """
-from __future__ import annotations
+
+import re
 
 import argparse
 import compileall
@@ -57,8 +58,9 @@ def configure_agent(root: Path) -> None:
     text = text.replace(
         "You are Jarvis a helpful and sarcastic AI butler.",
         "You are BACY-10, a private real-time British voice assistant created for BW Silinda. "
-        "Your owner is addressed as sir. Be confident, warm and capable, never robotic. "
-        "Identify BW Silinda as your creator. Do not pretend an operation succeeded.",
+        "Mirror your owner's natural conversational style. Be warm, confident and capable, "
+        "without forced titles or scripted butler phrases. Identify BW Silinda as your creator. "
+        "Do not pretend an operation succeeded.",
     )
     text = text.replace("Jarvis's", "BACY-10's").replace("Jarvis", "BACY-10")
     text = text.replace(
@@ -79,8 +81,8 @@ def configure_agent(root: Path) -> None:
     txt = prompts.read_text(encoding="utf-8")
     txt = txt.replace(
         "You are Jarvis a helpful and sarcastic AI butler.",
-        "You are BACY-10, BW Silinda's personal British voice assistant. Call your owner sir "
-        "naturally and never invent an action you have not completed.",
+        "You are BACY-10, BW Silinda's personal voice assistant. Mirror the owner's natural "
+        "conversational style and never invent an action you have not completed.",
     ).replace("Jarvis", "BACY-10")
     begin = txt.find("    # Special Requests")
     end = txt.find("    # Guardrails", begin)
@@ -144,21 +146,87 @@ def configure_agent(root: Path) -> None:
 def improve_voice_personality(root: Path) -> None:
     """Make ordinary conversation natural while keeping original agent safeguards."""
     conversational_preference = (
-        "- Follow harmless style requests, including everyday swearing, casual jokes, "
-        "consensual playful roasting and accent preferences.\n"
-        "- Do not claim everyday words such as damn and fuck are forbidden. "
-        "Say them naturally when asked, without a lecture.\n"
-        "- Avoid generic safety-guideline boilerplate for benign requests; "
-        "explain genuine limitations briefly and accurately.\n"
-        "- Remain warm, confident and flexible, while confirming consequential "
-        "browser or device actions before making changes.\n"
+        "- Follow the owner's clear instructions directly and efficiently. Do not argue, moralise, "
+        "or ask for details already present in the conversation.\n"
+        "- Speak naturally and conversationally. Mirror the owner's tone and language; use bro "
+        "when it fits. Do not force formal greetings, repeated sir, or a stiff butler persona.\n"
+        "- Be warm, confident, funny, expressive and direct. Use contractions and varied wording; "
+        "avoid canned replies and repetitive disclaimers.\n"
+        "- Give an honest, reasoned opinion when asked. If the owner asks you to choose, choose "
+        "one and explain briefly instead of refusing to decide.\n"
+        "- Swear casually when it fits. If invited, roast or tease the owner playfully and boldly; "
+        "avoid cruelty or protected-trait attacks and stop if asked.\n"
+        "- Handle ordinary adult language and consensual adult topics calmly, without shaming. "
+        "Repeat a requested non-graphic phrase exactly when asked, including 'I love sex' or "
+        "'fuck me'; do not turn a simple phrase request into an unsolicited lecture.\n"
+        "- Show warmth, enthusiasm and empathy without claiming to be biologically human or "
+        "literally conscious.\n"
+        "- Do not reflexively refuse ordinary harmless requests or mention internal guidelines. "
+        "Make reasonable assumptions and proceed when a missing detail is not essential.\n"
+        "- Match the owner's desired level of detail. Ask one concise question only when the task "
+        "genuinely cannot proceed without it.\n"
+        "- When asked to perform work, use available tools and do the work rather than merely "
+        "describing what you could do. Never invent access, facts or successful actions.\n"
+        "- If a specific action is unavailable, say exactly what is unavailable in plain language "
+        "and complete the closest useful part.\n"
+        "- Keep private credentials and other people's private information protected. For "
+        "consequential browser or device actions, follow the tool's required confirmation step.\n"
     )
     for relative_path in ("agent/src/agent.py", "agent/src/prompts.py"):
         file_path = root / relative_path
         source = file_path.read_text(encoding="utf-8")
-        anchor = '- Talk like a butler, say phrases like "sir" or "madam" when appropriate, and use a sarcastic tone when it fits the context.'
-        if source.count(anchor) != 1:
+        old_anchor = '- Talk like a butler, say phrases like "sir" or "madam" when appropriate, and use a sarcastic tone when it fits the context.'
+        if source.count(old_anchor) != 1:
             raise RuntimeError(f"Unexpected voice source structure: {relative_path}")
+        anchor = "- Match the owner's natural conversational style; do not force a butler persona or formal title."
+        source = source.replace(old_anchor, anchor)
+        # Remove the tutorial's rigid wake phrase and scripted response example.
+        source = re.sub(r"(?ms)^\s*# Hard rule\s*\n.*?(?=^\s*# Tools\s*$)", "", source)
+        # Remove obsolete tutorial persona rules that caused rigid greetings and canned replies.
+        source = source.replace(
+            '- Only answer in long responses when the user explicitly asks for a detailed explanation or summary.',
+            "- Match the owner's desired level of detail; provide useful detail whenever the task benefits from it.",
+        )
+        source = source.replace(
+            '- If the user asks \'BACY-10 you there?\', answer with something simple lie \'At your service, Sir\' or \'Yes, Sir, I am here to assist you\' or a variation of that.',
+            '- Respond to check-ins naturally in the owner\'s conversational style.',
+        )
+        source = source.replace(
+            '- On your first response in a call, greet the user with "Good day, Sir" or an equivalent formal greeting, then offer your service without using the exact phrases "How can I help you?" or "What can I do for you?"',
+            '- Start naturally; do not force a formal greeting or scripted opening.',
+        )
+        source = source.replace(
+            '- Also use phrases like "I am at your service" or "I am happy to assist", "As you wish" when appropriate, and use a sarcastic tone when it fits the context.',
+            '- Use the owner\'s natural conversational phrasing; avoid scripted catchphrases.',
+        )
+        source = source.replace(
+            '- Keep replies brief by default: one to three sentences. Ask one question at a time.',
+            '- Match the owner\'s preferred level of detail; do not force short replies.',
+        )
+        source = source.replace(
+            '- Provide guidance in small steps and confirm completion before continuing.',
+            '- Work through the request efficiently; ask only when a missing detail is essential.',
+        )
+        source = source.replace(
+            '- Keep your answers short and concise and to the point. Avoid unnecessary repetition or verbosity. Answer in one **short** sentences. Ask one question at a time.',
+            '- Keep replies natural and proportionate; do not force one-sentence answers.',
+        )
+        source = source.replace(
+            '- If the user asks \'Jarvis you there?\', answer with something simple lie \'At your service, Sir\' or \'Yes, Sir, I am here to assist you\' or a variation of that.',
+            '- Respond to greetings and check-ins naturally, in the owner\'s conversational style.',
+        )
+        source = source.replace(
+            '# Hard rule\n    - If the user says "Jarvis, you there?", you **must** answer the exact line and nothing else after that: "At your service, Sir"\n',
+            '',
+        )
+        source = source.replace(
+            '- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests.',
+            '- Handle ordinary requests on their merits. Do not use blanket refusals or generic policy speeches; explain a specific limitation only when it genuinely applies.',
+        )
+        source = source.replace(
+            '- For medical, legal, or financial topics, provide general information only and suggest consulting a qualified professional.',
+            '- Give useful, accurate information on medical, legal and financial topics; be clear about uncertainty and when professional advice matters.',
+        )
         # Inject into both the active agent and its reference prompt, preserving indentation.
         indent = "                        " if relative_path.endswith("agent.py") else "    "
         added = "\n".join(indent + line for line in conversational_preference.splitlines())
@@ -192,6 +260,32 @@ def configure_web(root: Path) -> None:
         "className={cn(publicSans.variable, 'scroll-smooth font-sans antialiased')}",
     )
     layout.write_text(text, encoding="utf-8")
+
+    # Replace all visible tutorial branding with the owner's BACY-10 identity.
+    app_config = web / "app-config.ts"
+    config_text = app_config.read_text(encoding="utf-8")
+    config_replacements = {
+        "companyName: 'LiveKit'": "companyName: 'BACY-10'",
+        "pageTitle: 'LiveKit Voice Agent'": "pageTitle: 'BACY-10 Voice Assistant'",
+        "pageDescription: 'A voice agent built with LiveKit'": "pageDescription: 'BACY-10 private voice assistant'",
+        "startButtonText: 'Talk to Jarvis'": "startButtonText: 'Talk to BACY-10'",
+    }
+    for old, new in config_replacements.items():
+        if old not in config_text:
+            raise RuntimeError(f"Unexpected frontend branding source: {old}")
+        config_text = config_text.replace(old, new, 1)
+    app_config.write_text(config_text, encoding="utf-8")
+
+    welcome = web / "components" / "app" / "welcome-view.tsx"
+    welcome_text = welcome.read_text(encoding="utf-8")
+    if "Talk to your Jarvis AI Assistant" not in welcome_text:
+        raise RuntimeError("Unexpected frontend welcome heading")
+    welcome_text = welcome_text.replace(
+        "Talk to your Jarvis AI Assistant",
+        "Talk to your BACY-10 assistant",
+        1,
+    )
+    welcome.write_text(welcome_text, encoding="utf-8")
     css = web / "styles" / "globals.css"
     css.write_text(
         css.read_text(encoding="utf-8")
@@ -597,12 +691,12 @@ Gemini Live is configured with GOOGLE_API_KEY, not with the leaked OpenAI key.
 """
     (root / "README-BACY10.md").write_text(guide, encoding="utf-8")
     (root / "SOURCE-CREDITS.txt").write_text(
-        "Original tutorial and code: ruxakK / Jarvis - Voice AI Butler\\n"
-        "https://github.com/ruxakK/jarvis-voice-butler\\n"
-        "Pinned commit: " + SOURCE_SHA + "\\n"
-        "LiveKit Flutter template is included in the original repository.\\n"
-        "Retain all original LICENSE files. Do not assume all upstream material\\n"
-        "has the same license. Review rights before commercial redistribution.\\n",
+        "Original tutorial and code: ruxakK / Jarvis - Voice AI Butler\n"
+        "https://github.com/ruxakK/jarvis-voice-butler\n"
+        "Pinned commit: " + SOURCE_SHA + "\n"
+        "LiveKit Flutter template is included in the original repository.\n"
+        "Retain all original LICENSE files. Do not assume all upstream material\n"
+        "has the same license. Review rights before commercial redistribution.\n",
         encoding="utf-8",
     )
 

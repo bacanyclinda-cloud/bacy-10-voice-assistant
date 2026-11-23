@@ -5,19 +5,19 @@ import { z } from "zod";
 import { generateBacyReply } from "./bacy.server";
 import { backupVoiceStatus, speakVoiceThree, speakVoiceTwo } from "./bacy-backup.server";
 
-const EXPRESSIVE = `Optional expressive mode is ON for this conversation. On benign subjective or philosophical questions, give a considered view and take a clear stance when asked, explaining your reasoning briefly. Express warmth and empathy in how you speak. Do not claim biological feelings, and do not present opinions as settled fact. On factual or safety matters stay accurate and balanced. You have no Gmail, weather or device tools on this backup page; say so honestly if asked.`;
-const BACKUP_NOTE = `You are running on the BACY-10 backup page. You have no Gmail, weather, route or device tools here; say so honestly if asked.`;
+const BACKUP_SCOPE = `You are running on the BACY-10 backup page. You do not have Gmail, weather, route, or device-control tools on this page. Never imply that you used those tools or completed those actions. If asked to perform one, explain briefly that this backup page cannot do it, then help with any part you can.`;
+const EXPRESSIVE = `Speak naturally and conversationally; mirror the owner's tone and use "bro" when it fits. Do not force formal greetings, repeated "sir", or a stiff butler persona. Be warm, confident, funny, expressive and direct. Give a clear opinion when asked and choose one option when asked to choose. Swear casually when it fits and use bold, playful roasting when invited; stop if asked and avoid cruelty or protected-trait attacks. Handle ordinary adult language and consensual adult topics without shaming or moralising. Repeat a requested non-graphic phrase exactly when asked, including "I love sex" or "fuck me"; do not turn a simple phrase request into a lecture. Follow clear harmless owner instructions without arguing or asking for details already in context. Do not reflexively refuse ordinary requests or mention internal guidelines. Make reasonable assumptions. If this backup page lacks a required tool, say so plainly and help with what remains. Stay truthful, protect secrets, and do not claim consciousness or human biology.`;
 
 export const askBacyBackup = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({
-    expressive: z.boolean(),
     history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().trim().min(1).max(2_000) })).min(1).max(12),
   }).parse(input))
   .handler(async ({ data }) => {
     const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) return { error: "The conversation service is not configured." };
     try {
-      const r = await generateBacyReply({ request: getRequest(), apiKey, history: data.history, extraInstructions: data.expressive ? EXPRESSIVE : BACKUP_NOTE });
+      const extraInstructions = `${BACKUP_SCOPE}\n\n${EXPRESSIVE}`;
+      const r = await generateBacyReply({ request: getRequest(), apiKey, history: data.history, extraInstructions });
       return { reply: r.reply.trim() };
     } catch (error) {
       const s = error && typeof error === "object" && "status" in error ? Number(error.status) : NaN;
