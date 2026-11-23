@@ -280,7 +280,7 @@ class _BacyProviderSettingsScreenState extends State<BacyProviderSettingsScreen>
         ]),
       ]),
       _panel('ElevenLabs',[
-        _note('Save and test an ElevenLabs API key. The current Gemini Live voice uses its own audio output; ElevenLabs requires a separately configured speech pipeline before it can become the voice.'),
+        _note('Save and test your ElevenLabs API key, load your voices, choose one, and select Voice 3 in the call screen. Voice 1 and Voice 2 remain Gemini Live voices.'),
         _field('ElevenLabs API key',elevenlabs,secret:true,hint:elevenSaved?'Saved (hidden)':''),
         if (elevenVoices.isNotEmpty) Padding(
           padding: const EdgeInsets.only(bottom: 12),
