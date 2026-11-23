@@ -402,6 +402,14 @@ jobs:
           lk project add --url "$LIVEKIT_URL" --api-key "$LIVEKIT_API_KEY" --api-secret "$LIVEKIT_API_SECRET" --default bacy10
           lk agent deploy --id "CA_4rt8fujSg5pZ" --secrets-file "$SECRET_FILE"
 
+      - name: Verify production agent status and configured secret names
+        run: |
+          set -euo pipefail
+          echo '--- PRODUCTION AGENT STATUS ---'
+          lk agent status --id "CA_4rt8fujSg5pZ" --json
+          echo '--- CONFIGURED SECRET NAMES ONLY ---'
+          lk agent secrets --id "CA_4rt8fujSg5pZ"
+
       - name: Smoke-test real Gemini voice input and spoken response
         working-directory: source/agent
         env:
