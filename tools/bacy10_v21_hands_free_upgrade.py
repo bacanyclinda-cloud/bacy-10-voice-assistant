@@ -100,6 +100,8 @@ class BacyWakeListener(private val activity: Activity, engine: FlutterEngine) {
                             if (needs.isNotEmpty()) {
                                 activity.requestPermissions(needs.toTypedArray(), 8011)
                                 result.success("Allow microphone and notification permissions to enable hands-free wake.")
+                            } else if (BacyVoiceService.running) {
+                                result.success("Hands-free wake is enabled and will resume when the live call ends.")
                             } else {
                                 BacyWakeService.voiceCallActive = false
                                 BacyWakeService.start(activity)
@@ -762,8 +764,10 @@ def apply(root: Path):
                 checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
                     android.content.pm.PackageManager.PERMISSION_GRANTED
             if (enabled && micGranted && noticeGranted) {
-                BacyWakeService.voiceCallActive = false
-                BacyWakeService.start(this)
+                if (!BacyVoiceService.running) {
+                    BacyWakeService.voiceCallActive = false
+                    BacyWakeService.start(this)
+                }
             } else {
                 prefs.edit().putBoolean("handsfree_enabled", false).apply()
                 BacyWakeService.stop(this)
