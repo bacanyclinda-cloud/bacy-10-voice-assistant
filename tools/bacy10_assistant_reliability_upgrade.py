@@ -188,7 +188,7 @@ class BacyAccessibilityService : AccessibilityService() {
         fun clickVisible(label: String): String {
             val service = instance ?: return "Enable BACY-10 in Accessibility settings first."
             if (label.length !in 2..100) return "Give the exact visible control name."
-            val risky = setOf("pay", "buy", "send", "delete", "purchase", "confirm", "transfer", "reset")
+            val risky = setOf("pay", "buy", "send", "delete", "purchase", "confirm", "transfer", "reset", "submit", "approve", "authorize", "accept", "checkout", "place order", "install", "uninstall", "remove", "revoke", "allow")
             if (risky.any { label.lowercase().contains(it) }) {
                 return "For safety, tap this sensitive action yourself."
             }
