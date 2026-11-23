@@ -161,6 +161,14 @@ jobs:
           wake=wake_service+"\n"+wake_listener
           assert "hey bacy" in wake
           assert "hey enzo" not in wake and "hey bro" not in wake
+          activity=(root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/MainActivity.kt").read_text()
+          on_resume=activity.split("override fun onResume()",1)[1].split("override fun onRequestPermissionsResult",1)[0]
+          assert "requestPermissions" not in on_resume
+          assert "handsfree_enabled" in activity and "handsfree_enabled" in wake_service
+          assert "disableWake" in activity
+          welcome=(root/"mobile/lib/screens/welcome_screen.dart").read_text()
+          assert "Turn off wake listening" in welcome
+          assert "system provider may process audio" in welcome
           assert "LIVEKIT_SANDBOX_ID" not in mobile
           assert "LIVEKIT_TOKEN_ENDPOINT=" in (root/"mobile/assets/.env").read_text()
           print("SOURCE VALIDATION PASSED: real agent, browser tools, web app, Flutter mobile and safe templates")
