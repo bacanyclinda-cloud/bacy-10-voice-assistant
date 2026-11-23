@@ -221,7 +221,7 @@ class _BacyMemoryScreenState extends State<BacyMemoryScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete all personal memory?'),
-        content: const Text('This permanently removes the facts BACY-10 has saved on your phone.'),
+        content: const Text('This deletes saved facts and conversation history from your phone and private cloud memory. Keep the app installed and connected until cloud deletion is confirmed.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete memory')),
@@ -229,8 +229,10 @@ class _BacyMemoryScreenState extends State<BacyMemoryScreen> {
       ),
     );
     if (confirmed == true) {
-      await BacyMemory.clear();
+      final result = await BacyMemory.clear();
       await _load();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result)));
     }
   }
 
