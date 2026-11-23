@@ -15,5 +15,7 @@ jobs:
         with:
           bun-version: '1.3.2'
       - run: bun install --frozen-lockfile
+      - name: Parse all workflow YAML files
+        run: bunx prettier --parser yaml .github/workflows/*.yml > /dev/null
       - run: bun run build
       - run: bun run test
