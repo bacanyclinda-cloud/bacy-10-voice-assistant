@@ -19,6 +19,7 @@ class BacyCloudMemory {
       'https://bacy10-memory.loopsecure-bacanyclinda.workers.dev';
   static const _storage = FlutterSecureStorage();
   static const _queueKey = 'bacy10_pending_cloud_turns_v1';
+  static const _resetKey = 'bacy10_pending_cloud_memory_reset_v1';
   static bool _flushing = false;
 
   static bool _luhnValid(String raw) {
@@ -68,7 +69,16 @@ class BacyCloudMemory {
     }
   }
 
+  static Future<bool> _completePendingReset() async {
+    if (await _storage.read(key: _resetKey) != 'yes') return true;
+    final response = await request('DELETE', '/memory');
+    if (response?.statusCode != 200) return false;
+    await _storage.delete(key: _resetKey);
+    return true;
+  }
+
   static Future<Map<String, dynamic>?> fetch() async {
+    if (!await _completePendingReset()) return null;
     final response = await request('GET', '/memory');
     if (response?.statusCode != 200) return null;
     try {
@@ -122,6 +132,7 @@ class BacyCloudMemory {
     if(_flushing)return;
     _flushing=true;
     try{
+      if (!await _completePendingReset()) return;
       final pending=await _pending();
       final remaining=<Map<String,dynamic>>[];
       for(var i=0;i<pending.length;i++){
@@ -225,9 +236,13 @@ METHODS = r'''
       'Removed '+key+' locally; cloud deletion needs internet.';
   }
 
-  static Future<void> clear() async {
-    await saveAll(<String,String>{for(final k in _defaults.keys)k:_deleted});
-    await BacyCloudMemory.clearAll();
+  static Future<String> clear() async {
+    final current = await _local();
+    await saveAll(<String,String>{for(final k in current.keys)k:_deleted});
+    final cleared = await BacyCloudMemory.clearAll();
+    return cleared
+      ? 'Phone and cloud memory were cleared.'
+      : 'Phone memory was cleared. Cloud deletion is queued; keep BACY-10 installed until it reconnects and confirms the reset.';
   }
 }
 '''
