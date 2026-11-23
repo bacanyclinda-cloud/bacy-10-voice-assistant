@@ -162,8 +162,10 @@ jobs:
           assert "hey bacy" in wake
           assert "hey enzo" not in wake and "hey bro" not in wake
           activity=(root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/MainActivity.kt").read_text()
-          on_resume=activity.split("override fun onResume()",1)[1].split("override fun onRequestPermissionsResult",1)[0]
-          assert "requestPermissions" not in on_resume
+          import re
+          on_resume_match=re.search(r"override fun onResume\\(\\)\\s*\\{(.*?)(?=\\n\\s*override fun |\\Z)",activity,re.S)
+          if on_resume_match:
+              assert "requestPermissions" not in on_resume_match.group(1), "Do not request permissions automatically from onResume"
           assert "handsfree_enabled" in activity and "handsfree_enabled" in wake_service
           assert "POST_NOTIFICATIONS" in wake_service
           assert "BacyVoiceService.running" in (root/"tools/bacy10_v21_hands_free_upgrade.py").read_text()
