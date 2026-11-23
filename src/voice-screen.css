@@ -12,7 +12,6 @@ body{color:#eef2f6;font-family:Inter,ui-sans-serif,-apple-system,system-ui,"Sego
 .voice-touch-layer{position:absolute;inset:0;z-index:3;display:block;width:100%;height:100%;background:transparent;border:0;border-radius:0;padding:0;outline-offset:-6px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .voice-touch-layer:focus-visible{outline:1px solid rgba(180,223,247,.5);outline-offset:-10px}
 .voice-touch-layer:disabled{cursor:default;opacity:1}
-.voice-floor select,.voice-floor label{pointer-events:auto;position:relative;z-index:5}
 .voice-floor{position:absolute;left:clamp(16px,3vw,45px);right:clamp(16px,3vw,45px);bottom:clamp(80px,12vh,135px);z-index:4;text-align:center;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:0}
 .voice-phase{display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.26em;font-weight:670;text-transform:uppercase;color:#e8f0f3}
 .voice-led{width:6px;height:6px;display:inline-block;border-radius:50%;background:#a7c6cb;box-shadow:0 0 13px rgba(138,179,197,.5)}
