@@ -20,6 +20,7 @@ class BacyCloudMemory {
   static const _storage = FlutterSecureStorage();
   static const _queueKey = 'bacy10_pending_cloud_turns_v1';
   static const _resetKey = 'bacy10_pending_cloud_memory_reset_v1';
+  static const _epochKey = 'bacy10_cloud_memory_epoch_v1';
   static bool _flushing = false;
 
   static bool _luhnValid(String raw) {
@@ -73,8 +74,26 @@ class BacyCloudMemory {
     if (await _storage.read(key: _resetKey) != 'yes') return true;
     final response = await request('DELETE', '/memory');
     if (response?.statusCode != 200) return false;
+    try {
+      final parsed = jsonDecode(response!.body);
+      final epoch = (parsed is Map ? parsed['memory_epoch'] : null)?.toString() ?? 'bacy-initial';
+      await _storage.write(key: _epochKey, value: epoch);
+    } catch (_) { return false; }
     await _storage.delete(key: _resetKey);
     return true;
+  }
+
+  static Future<String?> _ensureEpoch() async {
+    final saved = await _storage.read(key: _epochKey);
+    if (saved != null) return saved;
+    final response = await request('GET', '/memory');
+    if (response?.statusCode != 200) return null;
+    try {
+      final parsed = jsonDecode(response!.body);
+      final epoch = (parsed is Map ? parsed['memory_epoch'] : null)?.toString() ?? 'bacy-initial';
+      await _storage.write(key: _epochKey, value: epoch);
+      return epoch;
+    } catch (_) { return null; }
   }
 
   static Future<Map<String, dynamic>?> fetch() async {
@@ -84,7 +103,17 @@ class BacyCloudMemory {
     try {
       final parsed = jsonDecode(response!.body);
       if (parsed is Map && parsed['ok'] == true) {
-        return Map<String, dynamic>.from(parsed);
+        final result = Map<String, dynamic>.from(parsed);
+        final epoch = (result['memory_epoch'] ?? 'bacy-initial').toString();
+        final previous = await _storage.read(key: _epochKey);
+        final changed = previous != null && previous != epoch;
+        if (changed) {
+          await _storage.delete(key: _queueKey);
+          await _storage.delete(key: _factQueueKey);
+        }
+        await _storage.write(key: _epochKey, value: epoch);
+        result['epochChanged'] = changed;
+        return result;
       }
     } catch (_) {}
     return null;
@@ -99,7 +128,10 @@ class BacyCloudMemory {
           ?.statusCode == 200;
 
   static Future<void> importExisting(Map<String,String> facts) async {
-    if (facts.isNotEmpty) await request('POST','/memory/import',{'facts':facts});
+    if (facts.isEmpty) return;
+    final epoch = await _ensureEpoch();
+    if (epoch == null) return;
+    await request('POST','/memory/import',{'facts':facts,'memory_epoch':epoch});
   }
 
   static Future<bool> clearAll() async =>
@@ -118,11 +150,15 @@ class BacyCloudMemory {
   static Future<void> appendTurn(Map<String,dynamic> turn) async {
     final text=(turn['text']??'').toString().trim();
     if (text.isEmpty || text.length>3000 || containsSecret(text)) return;
-        final id=(turn['id']??'').toString();
+    if (!await _completePendingReset()) return;
+    final epoch = await _ensureEpoch();
+    if (epoch == null) return;
+    final id=(turn['id']??'').toString();
     final role=(turn['role']??'').toString();
     if (id.isEmpty || (role!='user' && role!='assistant')) return;
+    final stored = <String,dynamic>{...turn,'memory_epoch':epoch};
     final list=await _pending();
-    if (!list.any((x)=>x['id']==id)) list.add(turn);
+    if (!list.any((x)=>x['id']==id)) list.add(stored);
     while(list.length>80) { list.removeAt(0); }
     await _storage.write(key:_queueKey,value:jsonEncode(list));
     await flush();
@@ -133,6 +169,7 @@ class BacyCloudMemory {
     _flushing=true;
     try{
       if (!await _completePendingReset()) return;
+      if (await _ensureEpoch() == null) return;
       final pending=await _pending();
       final remaining=<Map<String,dynamic>>[];
       for(var i=0;i<pending.length;i++){
