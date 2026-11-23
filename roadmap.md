@@ -1,9 +1,18 @@
-# BACY-10
+# Bacy 10 engineering status
 
-- [ ] Build the BACY-10 assistant screen and responsive HUD.
-- [ ] Refine the backdrop and create a smoother, more realistic, dignified reactor finish.
-- [ ] Add spoken replies, push-to-talk, and adjustable audio settings.
-- [ ] Connect conversational AI and contextual local protocols.
-- [ ] Implement weather, directions, ambient audio, and diagnostics.
-- [ ] Add home-screen installation support and verify the main flows.
-- [ ] Fix the reported BACY-10 code errors and verify a natural, consistent spoken voice.
+## Existing foundations
+- [x] Voice-first React application and responsive HUD.
+- [x] Server-side AI conversation through Lovable AI Gateway.
+- [x] Real generated speech endpoint and browser microphone recognition.
+- [x] Backup voice studio and voice-provider status checks.
+- [x] Protected, read-only Gmail metadata endpoint for the LiveKit agent.
+- [x] Local browser conversation continuity (not cloud memory).
+
+## Remaining verification and engineering
+- [ ] Reconcile and validate the outstanding V4.0 LiveKit/Android restoration PR without force-merging.
+- [ ] Run build, tests, lint and LiveKit source-package validation on the integrated branch.
+- [ ] Verify real microphone input and generated speech on Android Chrome and desktop browsers.
+- [ ] Verify hosting secrets and connected services without exposing secret values.
+- [ ] Implement authenticated, user-controlled cloud memory with retention and deletion controls.
+- [ ] Add integration tests for voice-provider failures, browser storage restrictions and Gmail authorization.
+- [ ] Verify production deployment and installed PWA update behaviour.
