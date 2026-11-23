@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { VoiceSculpture, type VoicePhase } from "@/components/VoiceSculpture";
 import { askBacy } from "@/lib/bacy.functions";
-import { speakBacy } from "@/lib/bacy.speech.functions";
+import { getBacyVoiceOptions, speakBacy } from "@/lib/bacy.speech.functions";
 import { readSpeechResults, type BrowserSpeechResult } from "@/lib/speech-results";
 import { appendConversation, promptConversation, restoreConversation, serializeConversation } from "@/lib/bacy-history";
 
@@ -23,6 +23,8 @@ export const Route = createFileRoute("/")({
 });
 
 type HistoryMessage = { role: "user" | "assistant"; content: string };
+type SpeechProvider = "openai" | "elevenlabs";
+type ElevenLabsVoice = { id: string; name: string };
 type SpeechEvent = { results: ArrayLike<BrowserSpeechResult>; resultIndex: number };
 type SpeechError = { error: string };
 type Recognizer = {
@@ -53,6 +55,11 @@ function BacyVoice() {
   const [draft, setDraft] = useState("");
   const [speechAvailable, setSpeechAvailable] = useState(true);
   const [voiceLabel, setVoiceLabel] = useState("");
+  const [speechProvider, setSpeechProvider] = useState<SpeechProvider>("openai");
+  const [elevenVoices, setElevenVoices] = useState<ElevenLabsVoice[]>([]);
+  const [selectedElevenVoice, setSelectedElevenVoice] = useState("");
+  const [elevenLabsReady, setElevenLabsReady] = useState(false);
+  const [voiceLoading, setVoiceLoading] = useState(true);
   const recognizer = useRef<Recognizer | null>(null);
   // Recognition controls the microphone itself. A second getUserMedia capture
   // can disrupt the browser recognition service on Android.
@@ -86,6 +93,23 @@ function BacyVoice() {
     }
     const Speech = (window as SpeechBrowser).SpeechRecognition ?? (window as SpeechBrowser).webkitSpeechRecognition;
     setSpeechAvailable(Boolean(Speech));
+    try {
+      const savedProvider = window.localStorage.getItem("bacy10.speech.provider");
+      const savedVoice = window.localStorage.getItem("bacy10.speech.elevenlabs.voice");
+      if (savedProvider === "elevenlabs") setSpeechProvider("elevenlabs");
+      if (savedVoice) setSelectedElevenVoice(savedVoice);
+    } catch { /* Private browsing must not break voice setup. */ }
+    void getBacyVoiceOptions().then((result) => {
+      if (!mounted.current) return;
+      setElevenLabsReady(result.elevenLabsConfigured);
+      setElevenVoices(result.voices);
+      setSelectedElevenVoice((current) =>
+        result.voices.some((voice) => voice.id === current) ? current : (result.voices[0]?.id ?? ""));
+    }).catch(() => {
+      if (mounted.current) setError("Could not load ElevenLabs voices. Check the server key and try again.");
+    }).finally(() => {
+      if (mounted.current) setVoiceLoading(false);
+    });
     return () => {
       mounted.current = false;
       if (recognitionWatchdog.current !== null) clearTimeout(recognitionWatchdog.current);
@@ -123,7 +147,11 @@ function BacyVoice() {
     setError("");
     setPhase("thinking");
     try {
-      const result = await speak({ data: { text: text.slice(0, 1600) } });
+      const result = await speak({ data: {
+        text: text.slice(0, 1600),
+        provider: speechProvider,
+        ...(speechProvider === "elevenlabs" && selectedElevenVoice ? { voiceId: selectedElevenVoice } : {}),
+      } });
       if (!mounted.current || request !== audioRequestNumber.current) return;
       if (!("audio" in result) || !result.audio) {
         setError(result.error || "The AI voice service returned no audio. Your reply is available in text.");
@@ -151,7 +179,9 @@ function BacyVoice() {
           if (mounted.current) setPhase("idle");
         }
       };
-      setVoiceLabel("Natural British voice");
+      setVoiceLabel(speechProvider === "elevenlabs"
+        ? "ElevenLabs · " + (elevenVoices.find((voice) => voice.id === selectedElevenVoice)?.name ?? "Selected voice")
+        : "Natural British voice");
       setPhase("speaking");
       source.start();
     } catch (err) {
@@ -160,6 +190,19 @@ function BacyVoice() {
       setError("Real AI voice audio could not play in this browser. Open BACY-10 directly in Chrome.");
       setPhase("error");
     }
+  }
+
+  function changeSpeechProvider(value: SpeechProvider) {
+    setSpeechProvider(value);
+    try { window.localStorage.setItem("bacy10.speech.provider", value); } catch {}
+    if (value === "elevenlabs" && !elevenLabsReady) {
+      setError("ElevenLabs is not configured yet. Add ELEVENLABS_API_KEY to the website's private server secrets.");
+    } else setError("");
+  }
+
+  function changeElevenVoice(value: string) {
+    setSelectedElevenVoice(value);
+    try { window.localStorage.setItem("bacy10.speech.elevenlabs.voice", value); } catch {}
   }
 
   async function send(input: string) {
@@ -398,6 +441,25 @@ function BacyVoice() {
         disabled={phase === "thinking" || textMode}
         aria-label={phase === "listening" ? "Finish listening" : "Speak with BACY-10"} />
       <section className="voice-floor" aria-live="polite">
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+          <label htmlFor="bacy-speech-provider" style={{ fontSize: 11, letterSpacing: 1.2, color: "#9db3c3" }}>SPEAKING VOICE</label>
+          <select id="bacy-speech-provider" value={speechProvider}
+            onChange={(event) => changeSpeechProvider(event.target.value as SpeechProvider)}
+            style={{ background: "#111820", color: "#e9f1f7", border: "1px solid #526271", borderRadius: 8, padding: "8px 10px", maxWidth: 160 }}>
+            <option value="openai">BACY · Original</option>
+            <option value="elevenlabs">ElevenLabs</option>
+          </select>
+          {speechProvider === "elevenlabs" && <select aria-label="ElevenLabs voice" value={selectedElevenVoice}
+            onChange={(event) => changeElevenVoice(event.target.value)}
+            disabled={voiceLoading || !elevenLabsReady || elevenVoices.length === 0}
+            style={{ background: "#111820", color: "#e9f1f7", border: "1px solid #526271", borderRadius: 8, padding: "8px 10px", maxWidth: 190 }}>
+            {voiceLoading ? <option value="">Loading voices…</option> :
+              elevenVoices.length ? elevenVoices.map((voice) => <option key={voice.id} value={voice.id}>{voice.name}</option>) :
+                <option value="">No ElevenLabs voices available</option>}
+          </select>}
+        </div>
+        {speechProvider === "elevenlabs" && !elevenLabsReady &&
+          <p role="status" style={{ fontSize: 12, color: "#e6bd83" }}>Add ELEVENLABS_API_KEY to the website's private server secrets to load your voices.</p>}
         <div className="voice-phase"><i className={`voice-led led-${phase}`} aria-hidden="true" />{stateText}</div>
         {error ? <p className="voice-error" role="alert">{error}</p> :
           <p className="voice-live-text">{phase === "listening" ? (heard || "I'm listening.") :
