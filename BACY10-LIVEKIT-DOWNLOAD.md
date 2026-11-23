@@ -42,7 +42,7 @@ The workflow creates a temporary secrets file with restrictive permissions and r
 
 ## Install the Android release
 
-Download `BACY10-v40-ORIGINAL-ID-RELEASE` from a successful **BACY-10 LiveKit Complete Source** workflow run. Install the APK on Android and enter the private pairing code once. The app stores it using Android encrypted storage and requests short-lived LiveKit room credentials from the HTTPS token bridge.
+Download `BACY10-v40-ORIGINAL-ID-RELEASE` from a successful **BACY-10 LiveKit Complete Source** workflow run. Install the APK on Android and enter the private pairing code once. The app stores it using Android encrypted storage and requests short-lived LiveKit room credentials from the HTTPS token bridge. Hands-free wake is **off by default**. The owner must enable it from the hands-free permissions panel; a persistent notification appears while listening, and it can be disabled from the panel or notification. Wake detection uses Android speech recognition, on-device when available; otherwise the device's speech provider may process audio. It is not a dedicated offline hardware hotword detector.
 
 The release package ID is `za.co.bacy10.personalassistant`. This is a release build for testing; production distribution still needs a properly signed release and real-device acceptance testing.
 
