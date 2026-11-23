@@ -402,6 +402,23 @@ jobs:
           lk project add --url "$LIVEKIT_URL" --api-key "$LIVEKIT_API_KEY" --api-secret "$LIVEKIT_API_SECRET" --default bacy10
           lk agent deploy --id "CA_4rt8fujSg5pZ" --secrets-file "$SECRET_FILE"
 
+      - name: Smoke-test real Gemini voice input and spoken response
+        working-directory: source/agent
+        env:
+          LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          BACY10_AGENT_KEY: ${{ secrets.BACY10_AGENT_KEY }}
+        run: |
+          set -euo pipefail
+          cleanup() { lk agent debugger stop --json >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          lk agent debugger start src/agent.py --audio --idle-timeout 3m --json
+          TURN="$(lk agent debugger say --json --timeout 90s --logs "Say: BACY ten audio connection test. Reply with the words audio connection working.")"
+          printf '%s\\n' "$TURN"
+          printf '%s' "$TURN" | python -c 'import json,sys; d=json.load(sys.stdin); heard=str(d.get("heard","")).strip(); reply=str(d.get("reply","")).strip(); assert heard, "No speech transcription was received"; assert reply, "The model returned no spoken reply"; assert not d.get("error"), d.get("error"); print("LIVE AUDIO SMOKE TEST PASSED: transcription and assistant reply received")'
+
   # GitHub Actions artifact storage is currently over quota. Publish the
   # validated source bundle and Android APK as private GitHub Release assets
   # instead, so the owner can still download both without Actions artifacts.
