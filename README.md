@@ -2,6 +2,15 @@
 
 Bacy 10 is BW Silinda's private, voice-first personal assistant.
 
+## Live application and current release
+
+- **Web assistant:** https://bacy-orbit-voice-companion.lovable.app
+- **Android and complete source:** [BACY-10 V4.0 build 238 private release](https://github.com/bacanyclinda-cloud/bacy-10-voice-assistant/releases/tag/bacy10-v4.0.0-build-45252101627)
+- **Android APK:** [app-release.apk](https://github.com/bacanyclinda-cloud/bacy-10-voice-assistant/releases/download/bacy10-v4.0.0-build-45252101627/app-release.apk)
+- **LiveKit agent:** `bacy-10`, deployed to the existing LiveKit Cloud production project.
+
+The Android/LiveKit package uses the authenticated Cloudflare/D1 private-memory service after the phone is paired. The web assistant's conversation history remains browser-local; it is not currently synchronised with that cloud memory service. Real Android microphone, speaker, room-join and memory acceptance tests still need to be completed on a physical device.
+
 ## Current application
 
 - React, TypeScript, TanStack Start and Vite.
