@@ -6,7 +6,28 @@ const J=(data,status=200)=>new Response(JSON.stringify(data),{
  "cache-control":"no-store","x-content-type-options":"nosniff"}
 });
 function clean(v,n){return String(v??"").trim().slice(0,n)}
-function secretLike(s){return /(?:password|passphrase|api.?key|secret|bank.?pin|cvv|one.time.password|\botp\b)/i.test(s)}
+function luhnValid(value){
+ const digits=String(value).replace(/\D/g,"");
+ if(digits.length<13||digits.length>19)return false;
+ let sum=0,alternate=false;
+ for(let i=digits.length-1;i>=0;i--){
+  let n=Number(digits[i]);
+  if(alternate){n*=2;if(n>9)n-=9;}
+  sum+=n;alternate=!alternate;
+ }
+ return sum%10===0;
+}
+export function isSensitiveMemoryContent(value){
+ const s=String(value??"");
+ if(/(?:password|passphrase|api.?key|secret|bank.?pin|cvv|one.time.password|\botp\b)/i.test(s))return true;
+ if(/-----BEGIN (?:RSA |EC |OPENSSH |PRIVATE )?PRIVATE KEY-----/i.test(s))return true;
+ if(/\b(?:sk|rk)-[A-Za-z0-9_-]{20,}\b|\bgh[pousr]_[A-Za-z0-9]{20,}\b|\bAIza[0-9A-Za-z_-]{30,}\b|\bAKIA[0-9A-Z]{16}\b/i.test(s))return true;
+ if(/\bBearer\s+[A-Za-z0-9._~+\/-]{20,}/i.test(s))return true;
+ if(/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/.test(s))return true;
+ const candidates=s.match(/(?:\d[ -]?){13,19}/g)||[];
+ return candidates.some(luhnValid);
+}
+const secretLike=isSensitiveMemoryContent;
 async function authorized(req,env){
  const auth=req.headers.get("Authorization")||"";
  if(!auth.startsWith("Bearer ")||auth.length>250) return false;
