@@ -44,6 +44,7 @@ def apply(root: Path) -> None:
 
   static Future<void> flushFacts() async {
     if (_factFlushing) return;
+    if (!await _completePendingReset()) return;
     _factFlushing = true;
     try {
       final unsynced = await pendingFacts();
@@ -79,10 +80,12 @@ def apply(root: Path) -> None:
 
     once(cloud, """  static Future<bool> clearAll() async =>
       (await request('DELETE','/memory'))?.statusCode == 200;""", """  static Future<bool> clearAll() async {
-    // Prevent queued changes from restoring content the owner has deleted.
+    // Queue the reset before attempting the network. Old remote data is not
+    // fetched or replayed until the server confirms this reset.
+    await _storage.write(key: _resetKey, value: 'yes');
     await _storage.delete(key: _factQueueKey);
     await _storage.delete(key: _queueKey);
-    return (await request('DELETE', '/memory'))?.statusCode == 200;
+    return _completePendingReset();
   }""")
 
     once(memory, """  static Future<Map<String,String>> readAll() async {
