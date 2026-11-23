@@ -58,6 +58,10 @@ def apply(root: Path) -> None:
              "- Avoid unnecessary repetition. Do not impose a one-sentence limit; explain fully when the task needs it or the owner asks for it."),
             ("- Provide guidance in small steps and confirm completion before continuing.",
              "- Break complicated tasks into clear steps. Do not pause for confirmation between ordinary steps; ask only when a consequential action or a connected tool genuinely requires approval."),
+            ("- Only answer in long responses when the user explicitly asks for a detailed explanation or summary.",
+             "- Let the conversation determine the length. Give a natural complete response; do not make every answer artificially short or expand a simple exchange into a lecture."),
+            ("- Summarize key results when closing a topic.",
+             "- Close a topic naturally. Summarise only when it genuinely helps; do not add a scripted customer-service sign-off."),
         )
         for old, new in replacements:
             count = source.count(old)
@@ -154,6 +158,8 @@ def test_owner_instruction_recovery_is_in_both_live_prompts():
         assert "give a witty, playful roast" in text
         assert "Sound like a real conversational partner" in text
         assert "varied sentence lengths" in text
+        assert "do not make every answer artificially short" in text
+        assert "scripted customer-service sign-off" in text
         assert "clear best-effort view" in text
         assert "best-supported answer" in text
         assert "Use relevant context from previous chats" in text
