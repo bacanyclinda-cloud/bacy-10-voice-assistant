@@ -110,6 +110,12 @@ jobs:
               assert "# Owner-first boundaries" in instructions
               assert "Protect private information" in instructions
           assert (root/"mobile/lib/support/bacy10_cloud_memory.dart").is_file()
+          cloud_memory=(root/"mobile/lib/support/bacy10_cloud_memory.dart").read_text()
+          assert "_resetKey" in cloud_memory and "_completePendingReset" in cloud_memory
+          assert "Future<String> clear()" in (root/"mobile/lib/support/bacy10_memory.dart").read_text()
+          memory_screen=(root/"mobile/lib/screens/bacy10_memory_screen.dart").read_text()
+          assert "private cloud memory" in memory_screen.lower()
+          assert "keep the app installed" in memory_screen.lower()
           assert 'conversation_item_added' in agent
           assert 'owner_behavior_preferences' in agent
           assert (root/'mobile/lib/screens/bacy10_provider_settings_screen.dart').is_file()
