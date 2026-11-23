@@ -1,3 +1,5 @@
+import { redactSensitiveText } from "./lovable-error-reporting";
+
 // Captures the original Error out-of-band so server.ts can recover the stack
 // when h3 has already swallowed the throw into a generic 500 Response.
 
@@ -55,9 +57,15 @@ function isErrorLike(value: unknown): value is Error {
 const originalConsoleError = console.error.bind(console);
 console.error = (...args: unknown[]) => {
   const expanded = args.map((arg) => {
-    if (!isErrorLike(arg)) return arg;
-    record(arg);
-    return describeError(arg);
+    if (isErrorLike(arg)) {
+      record(arg);
+      return redactSensitiveText(describeError(arg)).slice(0, DESCRIPTION_LENGTH_LIMIT);
+    }
+    if (typeof arg === "string") return redactSensitiveText(arg).slice(0, DESCRIPTION_LENGTH_LIMIT);
+    if (arg !== null && typeof arg === "object") {
+      return redactSensitiveText(safeStringify(arg)).slice(0, DESCRIPTION_LENGTH_LIMIT);
+    }
+    return arg;
   });
   originalConsoleError(...expanded);
 };
