@@ -37,7 +37,7 @@ def apply(root: Path) -> None:
         if "BACY-10 owner instruction and personality recovery" in source:
             raise RuntimeError(f"Owner personality block already exists in {relative}")
 
-        # Replace vague upstream wording that caused over-refusal and rigid voice replies.
+        # Remove the upstream butler scripts and replace rigid voice instructions.
         replacements = (
             ("- Talk like a butler, say phrases like \"sir\" or \"madam\" when appropriate, and use a sarcastic tone when it fits the context.",
              "- Speak like a familiar, capable personal assistant. Do not use a butler persona or address the owner as sir or madam."),
@@ -49,7 +49,6 @@ def apply(root: Path) -> None:
              "- If the owner asks whether you are there, answer naturally and directly, for example: 'Yeah, I'm here.'"),
             ('- If the user says "Jarvis, you there?", you **must** answer the exact line and nothing else after that: "At your service, Sir"',
              '- Do not impose a fixed catchphrase or scripted response.'),
-        )
             ("- Keep replies brief by default: one to three sentences. Ask one question at a time.",
              "- Match the owner's requested level of detail. Be concise by default, but give a complete answer when the owner asks for detail, steps, code, or a finished deliverable."),
             ("- Keep your answers short and concise and to the point. Avoid unnecessary repetition or verbosity. Answer in one **short** sentences. Ask one question at a time.",
