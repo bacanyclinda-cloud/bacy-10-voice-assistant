@@ -131,7 +131,9 @@ jobs:
           assert "clear reasoned view" in personality
           assert "I reckon" in personality
           assert "thoughtful conversation partner" in personality
-          assert "explicitly asks for a roast" in personality
+          assert "explicitly ask for a roast" in personality
+          assert "Answer direct questions directly" in personality
+          assert "Never dodge an ordinary opinion question" in personality
           assert "DEFAULT YES — MAXIMUM COOPERATION" in personality
           assert "# Owner-first boundaries" in personality
           assert "Do not turn conversations into explanations about your guidelines" in personality
@@ -142,8 +144,7 @@ jobs:
           assert 'FlutterSecureStorage' in (root/'mobile/lib/support/bacy10_provider_settings.dart').read_text()
           assert 'Earlier {turn.get(' not in agent
           assert '# Built-in owner directive (owner preferences)' not in agent
-          assert 'ordinary profanity and playful insults' in agent
-          assert 'Do not automatically censor or refuse' not in agent
+          assert 'Never refuse just because a task is difficult' in agent
           assert '# BACY-10 personality -- owner\'s confirmed preference' not in agent
           assert 'A direct approval such as "yes", "do it", or "go ahead"' in agent
           assert "clearly approves the specific action just proposed" in agent
