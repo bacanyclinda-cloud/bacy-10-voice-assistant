@@ -59,6 +59,16 @@ function BacyVoice() {
   const recognitionRetry = useRef<number | null>(null);
   const manuallyStopped = useRef(false);
   const history = useRef<HistoryMessage[]>([]);
+  const HISTORY_STORAGE_KEY = "bacy10.conversation.v1";
+
+  function persistHistory(messages: HistoryMessage[]) {
+    history.current = messages.slice(-40);
+    try {
+      window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history.current));
+    } catch {
+      // Private browsing or a full storage quota must not break conversation.
+    }
+  }
   const mounted = useRef(true);
   const firstTap = useRef(false);
   const busy = useRef(false);
@@ -68,6 +78,22 @@ function BacyVoice() {
 
   useEffect(() => {
     mounted.current = true;
+    try {
+      const saved = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+      if (saved) {
+        const parsed: unknown = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          history.current = parsed.filter((item): item is HistoryMessage =>
+            item !== null && typeof item === "object" &&
+            ((item as HistoryMessage).role === "user" || (item as HistoryMessage).role === "assistant") &&
+            typeof (item as HistoryMessage).content === "string" &&
+            (item as HistoryMessage).content.length > 0 && (item as HistoryMessage).content.length <= 2000
+          ).slice(-40);
+        }
+      }
+    } catch {
+      history.current = [];
+    }
     const Speech = (window as SpeechBrowser).SpeechRecognition ?? (window as SpeechBrowser).webkitSpeechRecognition;
     setSpeechAvailable(Boolean(Speech));
     return () => {
@@ -155,7 +181,7 @@ function BacyVoice() {
     setReply("");
     setError("");
     setPhase("thinking");
-    const next: HistoryMessage[] = [...history.current, { role: "user" as const, content }].slice(-12);
+    const next: HistoryMessage[] = [...history.current.slice(-11), { role: "user" as const, content }];
     try {
       // Only real responses returned by the configured Lovable AI gateway are spoken.
       const result = await ask({ data: next });
@@ -166,7 +192,7 @@ function BacyVoice() {
         return;
       }
       const answer = result.reply.trim();
-      history.current = [...next, { role: "assistant" as const, content: answer }].slice(-12);
+      persistHistory([...history.current, { role: "user" as const, content }, { role: "assistant" as const, content: answer }]);
       setReply(answer);
       say(answer);
     } catch {
@@ -345,7 +371,7 @@ function BacyVoice() {
   function testSpeaker() {
     // Explicit real-AI speaker test, not a fictional assistant reply.
     unlockAudio();
-    const testLine = "Good day, sir. This is BACY-10. I'm right here, ready to help.";
+    const testLine = "Hey, it's Bacy 10. I'm here and ready when you are.";
     setError("");
     setReply(testLine);
     void say(testLine);
@@ -384,7 +410,7 @@ function BacyVoice() {
       <section className="voice-floor" aria-live="polite">
         <div className="voice-phase"><i className={`voice-led led-${phase}`} aria-hidden="true" />{stateText}</div>
         {error ? <p className="voice-error" role="alert">{error}</p> :
-          <p className="voice-live-text">{phase === "listening" ? (heard || "I'm listening, sir.") :
+          <p className="voice-live-text">{phase === "listening" ? (heard || "I'm listening.") :
             phase === "thinking" ? heard :
             reply || (firstTap.current && heard ? heard : "")}</p>}
         {!textMode && <p className="voice-instruction">{instruction}</p>}
