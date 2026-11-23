@@ -147,6 +147,9 @@ jobs:
           accessibility=(root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyAccessibilityService.kt").read_text()
           for protected_action in ["submit", "approve", "authorize", "install", "uninstall", "revoke"]:
               assert protected_action in accessibility.lower()
+          assert "isSensitiveScreen(root)" in accessibility
+          for sensitive_term in ["card number", "cvv", "routing number", "cryptocurrency"]:
+              assert sensitive_term in accessibility.lower()
           assert "GmailTools" in agent
           assert "list_latest_email_subjects" in (root/"agent/src/gmail_tools.py").read_text()
           assert "LIVEKIT_SANDBOX_ID" not in mobile
