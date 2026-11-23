@@ -212,7 +212,7 @@ class BacyWakeService : Service() {
         val notification = Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentTitle("BACY-10 is listening")
-            .setContentText("Say Hey BACY, Hey Enzo, or Hey Bro • Tap to open")
+            .setContentText("Say Hey BACY • Tap to open")
             .setContentIntent(openIntent)
             .setOngoing(true)
             .addAction(Notification.Action.Builder(
@@ -279,7 +279,7 @@ class BacyWakeService : Service() {
         val strings = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
         return strings.any {
             val phrase = it.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9 ]"), " ")
-            listOf("hey bacy", "hey basi", "hey bacey", "hey enzo", "hey bro")
+            listOf("hey bacy", "hey basi", "hey bacey")
                 .any { hotword -> phrase.contains(hotword) }
         }
     }
