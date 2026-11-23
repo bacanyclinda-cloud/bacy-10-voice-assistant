@@ -348,27 +348,27 @@ jobs:
           path: ./source
       - name: Check private cloud credentials
         env:
-          LIVEKIT_URL: \${{ secrets.LIVEKIT_URL }}
-          LIVEKIT_API_KEY: \${{ secrets.LIVEKIT_API_KEY }}
-          LIVEKIT_API_SECRET: \${{ secrets.LIVEKIT_API_SECRET }}
-          GOOGLE_API_KEY: \${{ secrets.GOOGLE_API_KEY }}
-          BACY10_AGENT_KEY: \${{ secrets.BACY10_AGENT_KEY }}
+          LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          BACY10_AGENT_KEY: ${{ secrets.BACY10_AGENT_KEY }}
         run: |
           test -n "$LIVEKIT_URL"
           test -n "$LIVEKIT_API_KEY"
           test -n "$LIVEKIT_API_SECRET"
           test -n "$GOOGLE_API_KEY"
-          test "\${#BACY10_AGENT_KEY}" -ge 32
+          test "${#BACY10_AGENT_KEY}" -ge 32
       - name: Install official LiveKit CLI
         run: curl -fsSL https://get.livekit.io/cli | bash
       - name: Deploy tested BACY-10 agent to existing LiveKit service
         working-directory: source/agent
         env:
-          LIVEKIT_URL: \${{ secrets.LIVEKIT_URL }}
-          LIVEKIT_API_KEY: \${{ secrets.LIVEKIT_API_KEY }}
-          LIVEKIT_API_SECRET: \${{ secrets.LIVEKIT_API_SECRET }}
-          GOOGLE_API_KEY: \${{ secrets.GOOGLE_API_KEY }}
-          BACY10_AGENT_KEY: \${{ secrets.BACY10_AGENT_KEY }}
+          LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          BACY10_AGENT_KEY: ${{ secrets.BACY10_AGENT_KEY }}
           BACY10_APP_URL: https://bacy-orbit-voice-companion.lovable.app
         run: |
           set -euo pipefail
