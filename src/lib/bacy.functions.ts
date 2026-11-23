@@ -40,7 +40,10 @@ export const askBacy = createServerFn({ method: "POST" })
       if (statusValue >= 500) {
         return { error: "The conversation service is temporarily unavailable. Your message is still here; please try again shortly.", status: statusValue };
       }
-      console.error("BACY-10 conversation request failed", error);
+      console.error("BACY-10 conversation request failed", {
+        name: error instanceof Error ? error.name : "unknown",
+        status: Number.isFinite(statusValue) ? statusValue : undefined,
+      });
       return { error: "BACY-10 couldn't complete that reply. Your message is still here; please try again.", status: Number.isFinite(statusValue) ? statusValue : 400 };
     }
   });
