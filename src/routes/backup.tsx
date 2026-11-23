@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { askBacyBackup, getBackupVoiceStatus, speakBacyBackup } from "@/lib/bacy-backup.functions";
 import { speakBacy } from "@/lib/bacy.speech.functions";
 import { BACKUP_VOICES, parseVoiceSwitch, type BackupVoice } from "@/lib/bacy-backup.voices";
+import { appendConversation, promptConversation, restoreConversation, serializeConversation } from "@/lib/bacy-history";
 
 export const Route = createFileRoute("/backup")({
   head: () => ({ meta: [{ title: "BACY-10 — Backup Voice Studio" }] }),
@@ -64,7 +65,7 @@ function BackupStudio() {
 
   function persistConversation(messages: ChatMessage[]) {
     conversation.current = messages.slice(-40);
-    try { window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(conversation.current)); }
+    try { window.localStorage.setItem(HISTORY_STORAGE_KEY, serializeConversation(conversation.current)); }
     catch { /* Storage restrictions must not break the backup assistant. */ }
   }
   const audio = useRef<AudioContext | null>(null);
@@ -77,16 +78,7 @@ function BackupStudio() {
   useEffect(() => {
     mounted.current = true;
     try {
-      const savedHistory = window.localStorage.getItem(HISTORY_STORAGE_KEY);
-      if (savedHistory) {
-        const parsed: unknown = JSON.parse(savedHistory);
-        if (Array.isArray(parsed)) conversation.current = parsed.filter((item): item is ChatMessage =>
-          item !== null && typeof item === "object" &&
-          ((item as ChatMessage).role === "user" || (item as ChatMessage).role === "assistant") &&
-          typeof (item as ChatMessage).content === "string" &&
-          (item as ChatMessage).content.length > 0 && (item as ChatMessage).content.length <= 2000
-        ).slice(-40);
-      }
+      conversation.current = restoreConversation(window.localStorage.getItem(HISTORY_STORAGE_KEY));
     } catch { conversation.current = []; }
     const saved = localStorage.getItem("bacy10-backup-selected-voice");
     if (saved === "voice1" || saved === "voice2" || saved === "voice3") {
@@ -195,7 +187,7 @@ function BackupStudio() {
     if (command) { chooseVoice(command); return; }
     busy.current = true;
     setPhase("thinking");
-    const history: ChatMessage[] = [...conversation.current.slice(-11), { role: "user", content: prompt }];
+    const history: ChatMessage[] = promptConversation(conversation.current, prompt);
     try {
       const answer = await ask({ data: { history } });
       if (!mounted.current) return;
@@ -205,7 +197,7 @@ function BackupStudio() {
         return;
       }
       const responseText = answer.reply.trim();
-      persistConversation([...conversation.current, { role: "user", content: prompt }, { role: "assistant", content: responseText }]);
+      persistConversation(appendConversation(conversation.current, prompt, responseText));
       setReply(responseText);
       await say(responseText, selectedVoice.current);
     } catch {
