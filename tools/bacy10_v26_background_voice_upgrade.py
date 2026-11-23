@@ -100,8 +100,12 @@ def apply(root: Path) -> None:
                             result.success(true)
                         }
                         "startWake" -> {''')
-    one(bridge, '''                                "wakeServiceRunning" to BacyWakeService.running))''',
+    one(bridge, '''                                "wakeServiceRunning" to BacyWakeService.running,
+                                "handsfreeEnabled" to activity.getSharedPreferences("bacy10_permissions", Context.MODE_PRIVATE)
+                                    .getBoolean("handsfree_enabled", false)))''',
         '''                                "wakeServiceRunning" to BacyWakeService.running,
+                                "handsfreeEnabled" to activity.getSharedPreferences("bacy10_permissions", Context.MODE_PRIVATE)
+                                    .getBoolean("handsfree_enabled", false),
                                 "voiceServiceRunning" to BacyVoiceService.running))''')
     manifest=mobile/"android/app/src/main/AndroidManifest.xml"
     one(manifest,'        <service android:name=".BacyWakeService"',
