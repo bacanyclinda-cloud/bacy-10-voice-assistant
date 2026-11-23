@@ -47,6 +47,6 @@ test("memory writes require the current epoch and intentional fact re-adds can b
   const source = await readFile(new URL("./bacy10-memory-worker.mjs", import.meta.url), "utf8");
   assert.match(source, /async function memoryEpoch/);
   assert.match(source, /stale_memory_epoch/);
-  assert.match(source, /x\.allow_readd!==true/);
+  assert.match(source, /isRetired\(env,"fact",key\+String\.fromCharCode\(0\)\+value\)/);
   assert.match(source, /memory_epoch:epoch/);
 });
