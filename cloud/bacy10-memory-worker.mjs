@@ -164,9 +164,9 @@ export default {async fetch(req,env){
     const epoch=await memoryEpoch(env);
     if(String(x.memory_epoch??"bacy-initial")!==epoch)
       return J({ok:true,ignored:"stale_memory_epoch"});
-    if(mode==="resetting" || (mode==="ready" &&
-        await isRetired(env,"fact",key+String.fromCharCode(0)+value)))
-      return J({ok:true,ignored:"pre_reset_cached_fact"});
+    if(mode==="resetting" ||
+        await isRetired(env,"fact",key+String.fromCharCode(0)+value))
+      return J({ok:true,ignored:"retired_or_reset_fact"});
     if(value==="__BACY10_DELETED__"){
       const existing=await env.DB.prepare("SELECT value FROM memory_facts WHERE key=?").bind(key).first();
       if(existing?.value!==undefined && existing.value!=="__BACY10_DELETED__"){
@@ -182,14 +182,17 @@ export default {async fetch(req,env){
   if(req.method==="POST"&&pathname==="/memory/import"){
     const x=await body(req);
     // An old client may automatically re-import every local bundled profile
-    // after an owner reset. Keep imports disabled until the updated client
-    // uses explicit new owner-directed remember() calls instead.
+    // after an owner reset. Keep imports disabled after a full reset.
     if(await resetMode(env))return J({ok:true,accepted:0,ignored:"owner_reset_no_old_imports"});
+    const epoch=await memoryEpoch(env);
+    if(String(x.memory_epoch??"bacy-initial")!==epoch)
+      return J({ok:true,accepted:0,ignored:"stale_memory_epoch"});
     const entries=Object.entries(x.facts||{}).slice(0,110);
     const queries=[];
     for(const [k,v] of entries){
       const key=clean(k,65).toLowerCase(),value=clean(v,1300);
-      if(!key||!value||secretLike(key)||secretLike(value))continue;
+      if(!key||!value||secretLike(key)||secretLike(value)||
+        await isRetired(env,"fact",key+String.fromCharCode(0)+value))continue;
       queries.push(env.DB.prepare("INSERT OR IGNORE INTO memory_facts (key,value,updated_at) VALUES (?,?,CURRENT_TIMESTAMP)").bind(key,value));
     }
     if(queries.length)await env.DB.batch(queries);
