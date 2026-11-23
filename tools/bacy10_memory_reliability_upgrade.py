@@ -80,6 +80,9 @@ def apply(root: Path) -> None:
   }
 
   static Future<bool> remember(String key, String value) async {
+    // Refresh the epoch before an intentional save, so a fact can be
+    // deliberately re-added after the owner reset cloud memory.
+    await fetch();
     // Persist the pending operation before attempting the network.
     final pending = await pendingFacts();
     pending[key] = value;
