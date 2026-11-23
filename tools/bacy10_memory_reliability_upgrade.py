@@ -42,17 +42,30 @@ def apply(root: Path) -> None:
     return <String, String>{};
   }
 
-  static Future<void> flushFacts() async {
-    if (_factFlushing) return;
-    if (!await _completePendingReset()) return;
+  static Future<bool> flushFacts() async {
+    if (_factFlushing) return false;
+    if (!await _completePendingReset()) return false;
     _factFlushing = true;
+    var acknowledged = true;
     try {
+      final epoch = await _ensureEpoch() ?? 'bacy-initial';
       final unsynced = await pendingFacts();
       // Bounded retries: keep a long offline queue, don't block opening the app.
       for (final entry in unsynced.entries.take(12)) {
-        final response = await request(
-            'POST', '/memory/fact', {'key': entry.key, 'value': entry.value});
-        if (response?.statusCode != 200) break;
+        final response = await request('POST', '/memory/fact', {
+          'key': entry.key,
+          'value': entry.value,
+          'memory_epoch': epoch,
+          'allow_readd': true,
+        });
+        if (response?.statusCode != 200) {
+          acknowledged = false;
+          break;
+        }
+        try {
+          final payload = jsonDecode(response!.body);
+          if (payload is Map && payload['ignored'] != null) acknowledged = false;
+        } catch (_) { acknowledged = false; }
         final latest = await pendingFacts();
         // Don't erase a newer edit made while the previous one was in flight.
         if (latest[entry.key] == entry.value) {
@@ -60,6 +73,7 @@ def apply(root: Path) -> None:
           await _storage.write(key: _factQueueKey, value: jsonEncode(latest));
         }
       }
+      return acknowledged && (await pendingFacts()).isEmpty;
     } finally {
       _factFlushing = false;
     }
@@ -70,9 +84,8 @@ def apply(root: Path) -> None:
     final pending = await pendingFacts();
     pending[key] = value;
     await _storage.write(key: _factQueueKey, value: jsonEncode(pending));
-    await flushFacts();
-    // True only if the latest value was acknowledged by the cloud service.
-    return !(await pendingFacts()).containsKey(key);
+    final synced = await flushFacts();
+    return synced && !(await pendingFacts()).containsKey(key);
   }
 
   static Future<bool> forget(String key) async =>
@@ -91,9 +104,13 @@ def apply(root: Path) -> None:
     once(memory, """  static Future<Map<String,String>> readAll() async {
     final local=await _local();
     final online=await BacyCloudMemory.fetch();""", """  static Future<Map<String,String>> readAll() async {
-    await BacyCloudMemory.flushFacts();
-    final local=await _local();
-    final online=await BacyCloudMemory.fetch();""")
+    final online=await BacyCloudMemory.fetch();
+    var local=await _local();
+    if (online?['epochChanged'] == true) {
+      local=<String,String>{};
+      await saveAll(local);
+    }
+    await BacyCloudMemory.flushFacts();""")
 
     once(memory, """      local.addAll(remote);
       await saveAll(local);
@@ -115,11 +132,11 @@ def apply(root: Path) -> None:
     // default facts can reappear after the app is reinstalled.
     final deleted=await BacyCloudMemory.forget(key);
     return deleted ? 'Removed '+key+' from private cloud memory.' :
-      'Removed '+key+' on this phone. Cloud deletion is queued; do not uninstall until it syncs.';""")
+      'Removed '+key+' on this phone. Cloud deletion is not yet confirmed; keep the app installed until it syncs.';""")
 
     once(memory, """    return synced ? 'Saved '+key+' in your private cloud memory.' :
       'Saved '+key+' on the phone; cloud sync is pending.';""", """    return synced ? 'Saved '+key+' in your private cloud memory. It can be restored after reinstall and re-pairing.' :
-      'Saved '+key+' locally. Cloud backup is pending; do not uninstall until the cloud confirms it.';""")
+      'Saved '+key+' on this phone; cloud sync is not yet confirmed. Keep the app installed until it syncs.';""")
 
     once(mobile / "pubspec.yaml", "version: 2.8.0+32", "version: 3.2.0+37")
 
@@ -155,6 +172,18 @@ def test_secret_filter_and_durable_reset():
     assert "_luhnValid(String raw)" in cloud
     assert "containsSecret(key+' '+item)" in memory
     assert "_resetKey" in cloud
+    assert "_epochKey" in cloud
+    assert "_ensureEpoch" in cloud
+    assert "memory_epoch" in cloud
+    assert "epochChanged" in cloud
     assert "_completePendingReset" in cloud
     assert "await _storage.write(key: _resetKey, value: 'yes')" in cloud
 ''', encoding="utf-8")
+
+def test_explicit_fact_readd_uses_current_epoch():
+    cloud = (ROOT / "bacy10_cloud_memory.dart").read_text()
+    worker = (ROOT.parents[2] / "cloud/bacy10-memory-worker.mjs").read_text()
+    assert "'memory_epoch': epoch" in cloud
+    assert "'allow_readd': true" in cloud
+    assert "stale_memory_epoch" in worker
+    assert "x.allow_readd!==true" in worker
