@@ -98,7 +98,7 @@ def apply(root: Path) -> None:
         from livekit.plugins import elevenlabs
         voice3_tts=elevenlabs.TTS(
             api_key=key,
-            voice_id='22N9cF8z0o7y23njdyaY',
+            voice_id=str(owner_providers.get('elevenlabs_voice_id') or '22N9cF8z0o7y23njdyaY'),
             model='eleven_flash_v2_5',
         )
 """
@@ -121,7 +121,8 @@ def apply(root: Path) -> None:
     replace(provider,"      'mcp_servers':servers,",
         """      'mcp_servers':servers,
       'voice_profile': (await read('voice_profile')).isEmpty ? 'voice1' : await read('voice_profile'),
-      'elevenlabs_api_key': (await read('voice_profile')) == 'voice3' ? await read('elevenlabs_api_key') : '',""")
+      'elevenlabs_api_key': (await read('voice_profile')) == 'voice3' ? await read('elevenlabs_api_key') : '',
+      'elevenlabs_voice_id': await read('elevenlabs_voice_id'),""")
 
     ctrl=root/'mobile/lib/controllers/app_ctrl.dart'
     replace(ctrl,'  bool isSessionStarting = false;',"""  bool isSessionStarting = false;
