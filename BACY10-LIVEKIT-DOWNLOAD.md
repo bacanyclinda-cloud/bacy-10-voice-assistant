@@ -22,7 +22,7 @@ The workflow:
 3. Runs Python/LiveKit agent tests, Flutter analysis and Android release compilation, and the Next.js frontend build.
 4. Optionally uploads the source ZIP and release APK as short-retention artifacts.
 
-The source ZIP artifact is named `BACY10-LIVEKIT-FULL-SOURCE`. The Android release APK artifact is named `BACY10-v40-ORIGINAL-ID-RELEASE`. Artifact upload can be delayed or skipped if GitHub Actions storage quota is exhausted; the build and test jobs are designed to run independently of artifact storage.
+The primary downloads are published as **private GitHub Release assets** after all main-branch validation jobs pass. Open the repository's **Releases** page and choose the latest `BACY-10 V4.0 build` prerelease. Download `BACY10-LIVEKIT-FULL-SOURCE.zip` for the complete source or `app-release.apk` for Android. This release route does not depend on GitHub Actions artifact storage. Short-retention Actions artifacts may also appear when the separate Actions storage quota allows them, but use the Release assets as the dependable download.
 
 ## Deploy the real LiveKit agent
 
@@ -34,7 +34,9 @@ Before deployment, configure these GitHub Actions repository secrets:
 - `GOOGLE_API_KEY`
 - `BACY10_AGENT_KEY` — a private random value of at least 32 characters, shared with the Lovable app's server-side secret.
 
-Then run **BACY-10 LiveKit Cloud Agent**:
+For normal updates, pushing a validated change to `main` automatically deploys the tested agent to the existing LiveKit production agent after Python, Android and Next.js checks pass. The workflow rebuilds its source directly, so deployment does not depend on Actions artifact storage.
+
+For a first deployment or a manually controlled operation, run **BACY-10 LiveKit Cloud Agent**:
 - First deployment: choose `create`.
 - Later updates: choose `deploy` and provide the existing LiveKit agent ID.
 
