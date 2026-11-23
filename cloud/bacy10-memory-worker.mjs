@@ -47,6 +47,12 @@ async function resetMode(env){
     return String(row?.value||"");
   }catch{return ""}
 }
+async function memoryEpoch(env){
+  try{
+    const row=await env.DB.prepare("SELECT value FROM memory_reset_control WHERE key='epoch'").first();
+    return String(row?.value||"bacy-initial");
+  }catch{return "bacy-initial"}
+}
 async function sha256(value){
   const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));
   return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,"0")).join("");
@@ -128,11 +134,9 @@ export default {async fetch(req,env){
     const facts=await env.DB.prepare("SELECT key,value FROM memory_facts ORDER BY updated_at DESC LIMIT 120").all();
     const turns=await env.DB.prepare("SELECT id,session_id,role,content,created_at FROM memory_turns ORDER BY created_at DESC, rowid DESC LIMIT 80").all();
     const reset=await resetMode(env);
-    const epoch=reset==="ready" ? await env.DB.prepare(
-      "SELECT value FROM memory_reset_control WHERE key='epoch'").first() : null;
+    const epoch=reset==="resetting" ? "bacy-reset-pending" : await memoryEpoch(env);
     return J({ok:true,facts:Object.fromEntries((facts.results||[]).map(x=>[x.key,x.value])),
-      turns:(turns.results||[]).reverse(),cloud:true,
-      memory_epoch:epoch?.value||""});
+      turns:(turns.results||[]).reverse(),cloud:true,memory_epoch:epoch});
   }
   if(req.method==="POST"&&pathname==="/memory/turn"){
     const x=await body(req);
@@ -141,6 +145,9 @@ export default {async fetch(req,env){
     if(!/^[a-zA-Z0-9:._-]{8,190}$/.test(id)||!["user","assistant"].includes(role)
       ||!text||secretLike(text))return J({error:"Invalid/sensitive turn"},400);
     const mode=await resetMode(env);
+    const epoch=await memoryEpoch(env);
+    if(String(x.memory_epoch??"bacy-initial")!==epoch)
+      return J({ok:true,ignored:"stale_memory_epoch"});
     if(mode==="resetting" || (mode==="ready" && await isRetired(env,"session",session)))
       return J({ok:true,ignored:"pre_reset_cached_turn"});
     await env.DB.prepare("INSERT OR IGNORE INTO memory_turns (id,session_id,role,content) VALUES (?,?,?,?)")
@@ -154,7 +161,11 @@ export default {async fetch(req,env){
     if(!key||!value||secretLike(key)||secretLike(value))
       return J({error:"Invalid/sensitive fact"},400);
     const mode=await resetMode(env);
-    if(mode==="resetting" || (mode==="ready" && await isRetired(env,"fact",key+String.fromCharCode(0)+value)))
+    const epoch=await memoryEpoch(env);
+    if(String(x.memory_epoch??"bacy-initial")!==epoch)
+      return J({ok:true,ignored:"stale_memory_epoch"});
+    if(mode==="resetting" || (mode==="ready" &&
+        await isRetired(env,"fact",key+String.fromCharCode(0)+value) && x.allow_readd!==true))
       return J({ok:true,ignored:"pre_reset_cached_fact"});
     if(value==="__BACY10_DELETED__"){
       const existing=await env.DB.prepare("SELECT value FROM memory_facts WHERE key=?").bind(key).first();
