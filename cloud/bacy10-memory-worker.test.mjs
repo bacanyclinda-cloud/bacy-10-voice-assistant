@@ -42,7 +42,7 @@ test("individual tombstones retire old fact values", async () => {
   assert.match(source, /INSERT OR IGNORE INTO memory_reset_replay\(kind,hash\) VALUES \('fact',\?\)/);
 });
 
-test("memory writes require the current epoch and intentional fact re-adds can bypass retired hashes", async () => {
+test("memory writes require the current epoch and retired facts remain blocked", async () => {
   const { readFile } = await import("node:fs/promises");
   const source = await readFile(new URL("./bacy10-memory-worker.mjs", import.meta.url), "utf8");
   assert.match(source, /async function memoryEpoch/);
