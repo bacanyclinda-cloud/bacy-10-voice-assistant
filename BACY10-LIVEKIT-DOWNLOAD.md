@@ -1,55 +1,58 @@
-# BACY-10 — Android + always-on LiveKit deployment
+# Bacy 10 — LiveKit, Android and cloud memory
 
-The real BACY-10 implementation is based on [the creator's public tutorial](https://github.com/ruxakK/jarvis-voice-butler).
+This repository contains the web voice assistant and the source generator for the separate LiveKit/Gemini Android assistant.
 
-## What's fixed
-- The Android client now uses a secure HTTPS `EndpointTokenSource`, **not** `LIVEKIT_SANDBOX_ID`.
-- A pairing code is stored in Android encrypted storage and sent as an Authorization bearer header when requesting a short-lived room token.
-- LiveKit's private API key and secret remain on the Cloudflare token server. Gemini remains in the cloud-hosted Python agent.
-- The app identifies errors instead of silently connecting to a showcase bot.
-- Android package ID: `za.co.bacy10.personalassistant` (separate from the old demo package).
+## Existing cloud services
 
-## Cloudflare token endpoint
-Live bridge:
-`https://bacy10-livekit-bridge.loopsecure-bacanyclinda.workers.dev/token`
+- **LiveKit token bridge:** `bacy10-livekit-bridge` at
+  `https://bacy10-livekit-bridge.loopsecure-bacanyclinda.workers.dev/token`.
+  Its Cloudflare secret bindings are configured; the LiveKit API key and secret remain server-side.
+- **Cloud memory:** `bacy10-memory`, backed by the existing D1 database and authenticated through a Cloudflare service binding to the token bridge. Memory is not stored in the Git repository or embedded as a static personal profile in the APK.
+- **LiveKit agent:** the Python agent named `bacy-10` must be deployed to LiveKit Cloud separately. A connected room alone does not prove the agent joined.
 
-Status:
-`https://bacy10-livekit-bridge.loopsecure-bacanyclinda.workers.dev/health`
+Never paste, commit, or package pairing codes, API keys, passwords, or LiveKit secrets.
 
-**Important:** The Worker is already deployed, but it only works after its secret bindings have been configured. A health response with `configured:false` means the private keys are missing.
+## Build and verify the complete source
 
-In Cloudflare dashboard, open Workers & Pages → `bacy10-livekit-bridge` → Settings → Variables and Secrets. Add these **secret** bindings:
-- `LIVEKIT_API_KEY`: your LiveKit API key
-- `LIVEKIT_API_SECRET`: your LiveKit API secret
-- `BACY10_PAIRING_KEY`: a long private pairing code you choose; enter the **same** code on your phone
+GitHub Actions → **BACY-10 LiveKit Complete Source**.
 
-`LIVEKIT_URL` is already configured as a normal variable.
+The workflow:
+1. Downloads the pinned upstream source and applies the Bacy 10 upgrade scripts.
+2. Runs source and cloud-memory security checks.
+3. Runs Python/LiveKit agent tests, Flutter analysis and Android release compilation, and the Next.js frontend build.
+4. Optionally uploads the source ZIP and release APK as short-retention artifacts.
 
-Do not paste secrets in GitHub files, the app's source, screenshots or conversations.
+The source ZIP artifact is named `BACY10-LIVEKIT-FULL-SOURCE`. The Android release APK artifact is named `BACY10-v40-ORIGINAL-ID-RELEASE`. Artifact upload can be delayed or skipped if GitHub Actions storage quota is exhausted; the build and test jobs are designed to run independently of artifact storage.
 
-## Deploy the real agent to LiveKit Cloud (24/7)
-LiveKit Cloud hosts the **Python voice agent**, not Cloudflare Workers. Open this repo's Settings → Secrets and variables → Actions. Create these four repository secrets:
-- `LIVEKIT_URL` (your wss:// project URL)
+## Deploy the real LiveKit agent
+
+Before deployment, configure these GitHub Actions repository secrets:
+
+- `LIVEKIT_URL`
 - `LIVEKIT_API_KEY`
 - `LIVEKIT_API_SECRET`
-- `GOOGLE_API_KEY` (your valid Gemini key)
+- `GOOGLE_API_KEY`
+- `BACY10_AGENT_KEY` — a private random value of at least 32 characters, shared with the Lovable app's server-side secret.
 
-Then choose Actions → **BACY-10 LiveKit Cloud Agent** → Run workflow → `create`. This uses the official LiveKit CLI to upload the real agent Dockerfile and register `bacy-10`. Agent deployment depends on your project's quota, the Google model's availability and Docker build.
+Then run **BACY-10 LiveKit Cloud Agent**:
+- First deployment: choose `create`.
+- Later updates: choose `deploy` and provide the existing LiveKit agent ID.
 
-For later updates, choose `deploy` and enter the existing LiveKit agent ID.
+The workflow creates a temporary secrets file with restrictive permissions and removes it after deployment. Do not add credentials to the APK, source ZIP or repository.
 
-## Install the corrected Android app
-Actions → **BACY-10 LiveKit Complete Source** → latest successful run → Artifacts → `BACY10-LIVEKIT-ANDROID-DEBUG`.
+## Install the Android release
 
-Extract the APK artifact ZIP if needed, then install `app-debug.apk`. The new Android app has its own package ID; it will not silently reuse the old demo app's credentials.
+Download `BACY10-v40-ORIGINAL-ID-RELEASE` from a successful **BACY-10 LiveKit Complete Source** workflow run. Install the APK on Android and enter the private pairing code once. The app stores it using Android encrypted storage and requests short-lived LiveKit room credentials from the HTTPS token bridge.
 
-Open the app, paste the Cloudflare Worker pairing code once, and tap START VOICE CALL. It connects to the LiveKit room and explicitly dispatches the `bacy-10` agent.
+The release package ID is `za.co.bacy10.personalassistant`. This is a release build for testing; production distribution still needs a properly signed release and real-device acceptance testing.
 
-## Live acceptance test
-1. Verify Cloudflare `/health` reports `configured:true`.
-2. Verify the LiveKit Cloud agent is deployed and running.
-3. Connect Android; say 'Hello, BACY-10'; listen for a genuine response.
-4. Interrupt, toggle the camera, test a harmless browser request, and disconnect/reconnect.
-5. Observe LiveKit Cloud logs and quotas during testing.
+## Real-device acceptance checks
 
-No keys are bundled into the APK or source ZIP; voice and browser controls cannot work until the real cloud agent has been deployed and credentials configured. Cloud services may have usage charges.
+1. Confirm the token bridge health endpoint reports that its server configuration is ready.
+2. Deploy the Python agent to LiveKit Cloud and confirm the agent joins the room.
+3. Test microphone input, natural voice output and interruption on the actual Android phone.
+4. Test phone actions only after Android permissions are granted.
+5. Test memory save, restore after reinstall, offline queueing and owner-requested deletion.
+6. Confirm the assistant reports genuine failures rather than pretending an unavailable action succeeded.
+
+A successful source build is not proof of live microphone, voice, LiveKit deployment or Android device behaviour. Those require a real device and live service checks.
