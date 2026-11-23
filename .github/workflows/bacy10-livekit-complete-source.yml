@@ -45,6 +45,8 @@ jobs:
         working-directory: build/BACY10-LIVEKIT-FULL-SOURCE/agent
         run: uv lock --python 3.12
 
+      - name: Test cloud-memory credential filtering
+        run: node --test cloud/bacy10-memory-worker.test.mjs
       - name: Validate essential source and exclude secrets
         run: |
           python - <<'PY'
