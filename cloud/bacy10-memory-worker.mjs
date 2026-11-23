@@ -179,6 +179,12 @@ export default {async fetch(req,env){
   if(req.method==="DELETE"&&pathname==="/memory/fact"){
     const x=await body(req),key=clean(x.key,65).toLowerCase();
     if(!key)return J({error:"Missing key"},400);
+    const existing=await env.DB.prepare("SELECT value FROM memory_facts WHERE key=?").bind(key).first();
+    if(existing?.value!==undefined){
+      const hash=await sha256(key+String.fromCharCode(0)+String(existing.value));
+      await env.DB.prepare("INSERT OR IGNORE INTO memory_reset_replay(kind,hash) VALUES ('fact',?)")
+        .bind(hash).run();
+    }
     await env.DB.prepare("DELETE FROM memory_facts WHERE key=?").bind(key).run();
     return J({ok:true});
   }
