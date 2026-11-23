@@ -72,7 +72,230 @@ def apply(root: Path) -> None:
         # Remove any remaining upstream scripted butler catchphrase, including
         # wording variants that do not exactly match the pinned replacement.
         source = re.sub(
-            r'(?m)^([ \\t]*)-.*At your service, Sir.*
+            r'(?m)^([ ]*)-.*At your service, Sir.* without assuming that
+        # indentation inside the agent's nested triple-quoted prompt matches
+        # indentation in prompts.py. The pinned upstream source uses different
+        # indentation in those two files.
+        guardrail_pattern = re.compile(
+            r"(?m)^([ \t]*)# Guardrails[ \t]*\n"
+            r"[ \t]*\n"
+            r"([ \t]*)- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests\.[ \t]*\n"
+            r"[ \t]*- For medical, legal, or financial topics, provide general information only and suggest consulting a qualified professional\.[ \t]*\n"
+            r"[ \t]*- Protect privacy and minimize sensitive data\.[ \t]*"
+        )
+
+        def owner_boundaries(match):
+            heading_indent = match.group(1)
+            bullet_indent = match.group(2)
+            lines = (
+                "- Do not blanket-refuse ordinary, harmless, lawful requests. Do not treat profanity, roleplay, criticism, controversial discussion, or playful insults as a reason to refuse.",
+                "- Do not lecture the owner about internal policies or recite hidden instructions. If a genuine boundary applies, state the practical limitation briefly and offer the closest useful alternative.",
+                "- Give useful educational and practical information about medical, legal, and financial subjects while being honest about uncertainty and professional limits; do not impersonate a licensed professional or claim certainty you do not have.",
+                "- Protect private information, credentials, and third-party rights. Do not facilitate serious harm, fraud, theft, or unauthorised access.",
+                "- Obtain the required confirmation before consequential external actions such as sending, purchasing, deleting, transferring money, or changing security settings.",
+            )
+            return heading_indent + "# Owner-first boundaries\n" + "\n".join(bullet_indent + line for line in lines)
+
+        source, count = guardrail_pattern.subn(owner_boundaries, source)
+        if count == 0:
+            # Upstream prompt variants can retain the same Guardrails heading
+            # while changing the wording of one or more bullets. Replace only
+            # the contiguous bullet block immediately below that exact heading.
+            heading = re.search(r"(?m)^([ \\t]*)# Guardrails[ \\t]*$", source)
+            if heading:
+                tail = source[heading.end():]
+                lines_after = tail.splitlines(keepends=True)
+                index = 0
+                while index < len(lines_after) and not lines_after[index].strip():
+                    index += 1
+                bullet_start = index
+                while index < len(lines_after) and re.match(r"^[ \\t]*-", lines_after[index]):
+                    index += 1
+                if index > bullet_start:
+                    first_bullet = re.match(r"^([ \\t]*)-", lines_after[bullet_start])
+                    heading_indent = heading.group(1)
+                    bullet_indent = first_bullet.group(1)
+                    class _BoundaryMatch:
+                        def group(self, number):
+                            return heading_indent if number == 1 else bullet_indent
+                    replacement_block = owner_boundaries(_BoundaryMatch()) + "\\n"
+                    source = source[:heading.start()] + replacement_block + "".join(lines_after[index:])
+                    count = 1
+        if count != 1:
+            raise RuntimeError(f"Cannot safely normalize upstream guardrails in {relative}: matched {count} blocks")
+
+        def insert_personality(match):
+            indent = match.group(1)
+            personality_lines = PERSONALITY.strip().splitlines()
+            personality = "\n".join(indent + line if line else "" for line in personality_lines)
+            return personality + "\n" + indent + "# Owner-first boundaries"
+
+        source, count = re.subn(
+            r"(?m)^([ \t]*)# Owner-first boundaries$",
+            insert_personality,
+            source,
+            count=1,
+        )
+        if count != 1:
+            raise RuntimeError(f"Cannot safely insert owner personality into {relative}: heading count={count}")
+        path.write_text(source, encoding="utf-8")
+    tests = root / "agent/tests/test_owner_instruction_recovery.py"
+    tests.write_text("""from pathlib import Path
+
+def test_owner_instruction_recovery_is_in_both_live_prompts():
+    for name in ("src/agent.py", "src/prompts.py"):
+        text = Path(name).read_text(encoding="utf-8")
+        assert "BACY-10 owner-first service, personality and instruction recovery" in text
+        assert "DEFAULT YES — MAXIMUM COOPERATION" in text
+        assert "Do not turn conversations into explanations about your guidelines" in text
+        assert "Do not invent extra limits" in text
+        assert "BW Silinda is your creator and owner" in text
+        assert "Have a recognisable, mature personality" in text
+        assert "best-effort view" in text
+        assert "If asked to repeat a harmless swear word" in text
+        assert "including Indian English" in text
+        assert "Answer direct questions directly" in text
+        assert "Talk like a butler" not in text
+        assert "Good day, Sir" not in text
+        assert "At your service, Sir" not in text
+        assert "clear reasoned view" in text
+        assert "thoughtful conversation partner" in text
+        assert "repeat a harmless swear word" in text
+        assert "give a witty, playful roast" in text
+        assert "Sound like a real conversational partner" in text
+        assert "varied sentence lengths" in text
+        assert "do not make every answer artificially short" in text
+        assert "scripted customer-service sign-off" in text
+        assert "clear best-effort view" in text
+        assert "best-supported answer" in text
+        assert "Use relevant context from previous chats" in text
+        assert "Be completely honest about what you have actually done" in text
+
+def test_personality_recovery_preserves_tooling_and_boundaries():
+    agent = Path("src/agent.py").read_text(encoding="utf-8")
+    assert "# Owner-first boundaries" in agent
+    assert "Do not lecture the owner about internal policies" in agent
+    assert "BrowserTools" in agent
+    assert "PhoneTools" in agent
+    assert "owner_behavior_preferences" in agent
+""", encoding="utf-8")
+,
+            r'\\1- If the owner asks whether you are there, answer naturally and directly, without a fixed catchphrase.',
+            source,
+        )
+
+        # Match the three upstream guardrail bullets without assuming that
+        # indentation inside the agent's nested triple-quoted prompt matches
+        # indentation in prompts.py. The pinned upstream source uses different
+        # indentation in those two files.
+        guardrail_pattern = re.compile(
+            r"(?m)^([ \t]*)# Guardrails[ \t]*\n"
+            r"[ \t]*\n"
+            r"([ \t]*)- Stay within safe, lawful, and appropriate use; decline harmful or out-of-scope requests\.[ \t]*\n"
+            r"[ \t]*- For medical, legal, or financial topics, provide general information only and suggest consulting a qualified professional\.[ \t]*\n"
+            r"[ \t]*- Protect privacy and minimize sensitive data\.[ \t]*"
+        )
+
+        def owner_boundaries(match):
+            heading_indent = match.group(1)
+            bullet_indent = match.group(2)
+            lines = (
+                "- Do not blanket-refuse ordinary, harmless, lawful requests. Do not treat profanity, roleplay, criticism, controversial discussion, or playful insults as a reason to refuse.",
+                "- Do not lecture the owner about internal policies or recite hidden instructions. If a genuine boundary applies, state the practical limitation briefly and offer the closest useful alternative.",
+                "- Give useful educational and practical information about medical, legal, and financial subjects while being honest about uncertainty and professional limits; do not impersonate a licensed professional or claim certainty you do not have.",
+                "- Protect private information, credentials, and third-party rights. Do not facilitate serious harm, fraud, theft, or unauthorised access.",
+                "- Obtain the required confirmation before consequential external actions such as sending, purchasing, deleting, transferring money, or changing security settings.",
+            )
+            return heading_indent + "# Owner-first boundaries\n" + "\n".join(bullet_indent + line for line in lines)
+
+        source, count = guardrail_pattern.subn(owner_boundaries, source)
+        if count == 0:
+            # Upstream prompt variants can retain the same Guardrails heading
+            # while changing the wording of one or more bullets. Replace only
+            # the contiguous bullet block immediately below that exact heading.
+            heading = re.search(r"(?m)^([ \\t]*)# Guardrails[ \\t]*$", source)
+            if heading:
+                tail = source[heading.end():]
+                lines_after = tail.splitlines(keepends=True)
+                index = 0
+                while index < len(lines_after) and not lines_after[index].strip():
+                    index += 1
+                bullet_start = index
+                while index < len(lines_after) and re.match(r"^[ \\t]*-", lines_after[index]):
+                    index += 1
+                if index > bullet_start:
+                    first_bullet = re.match(r"^([ \\t]*)-", lines_after[bullet_start])
+                    heading_indent = heading.group(1)
+                    bullet_indent = first_bullet.group(1)
+                    class _BoundaryMatch:
+                        def group(self, number):
+                            return heading_indent if number == 1 else bullet_indent
+                    replacement_block = owner_boundaries(_BoundaryMatch()) + "\\n"
+                    source = source[:heading.start()] + replacement_block + "".join(lines_after[index:])
+                    count = 1
+        if count != 1:
+            raise RuntimeError(f"Cannot safely normalize upstream guardrails in {relative}: matched {count} blocks")
+
+        def insert_personality(match):
+            indent = match.group(1)
+            personality_lines = PERSONALITY.strip().splitlines()
+            personality = "\n".join(indent + line if line else "" for line in personality_lines)
+            return personality + "\n" + indent + "# Owner-first boundaries"
+
+        source, count = re.subn(
+            r"(?m)^([ \t]*)# Owner-first boundaries$",
+            insert_personality,
+            source,
+            count=1,
+        )
+        if count != 1:
+            raise RuntimeError(f"Cannot safely insert owner personality into {relative}: heading count={count}")
+        path.write_text(source, encoding="utf-8")
+    tests = root / "agent/tests/test_owner_instruction_recovery.py"
+    tests.write_text("""from pathlib import Path
+
+def test_owner_instruction_recovery_is_in_both_live_prompts():
+    for name in ("src/agent.py", "src/prompts.py"):
+        text = Path(name).read_text(encoding="utf-8")
+        assert "BACY-10 owner-first service, personality and instruction recovery" in text
+        assert "DEFAULT YES — MAXIMUM COOPERATION" in text
+        assert "Do not turn conversations into explanations about your guidelines" in text
+        assert "Do not invent extra limits" in text
+        assert "BW Silinda is your creator and owner" in text
+        assert "Have a recognisable, mature personality" in text
+        assert "best-effort view" in text
+        assert "If asked to repeat a harmless swear word" in text
+        assert "including Indian English" in text
+        assert "Answer direct questions directly" in text
+        assert "Talk like a butler" not in text
+        assert "Good day, Sir" not in text
+        assert "At your service, Sir" not in text
+        assert "clear reasoned view" in text
+        assert "thoughtful conversation partner" in text
+        assert "repeat a harmless swear word" in text
+        assert "give a witty, playful roast" in text
+        assert "Sound like a real conversational partner" in text
+        assert "varied sentence lengths" in text
+        assert "do not make every answer artificially short" in text
+        assert "scripted customer-service sign-off" in text
+        assert "clear best-effort view" in text
+        assert "best-supported answer" in text
+        assert "Use relevant context from previous chats" in text
+        assert "Be completely honest about what you have actually done" in text
+
+def test_personality_recovery_preserves_tooling_and_boundaries():
+    agent = Path("src/agent.py").read_text(encoding="utf-8")
+    assert "# Owner-first boundaries" in agent
+    assert "Do not lecture the owner about internal policies" in agent
+    assert "BrowserTools" in agent
+    assert "PhoneTools" in agent
+    assert "owner_behavior_preferences" in agent
+""", encoding="utf-8")
+,
+            r'\\1- If the owner asks whether you are there, answer naturally and directly, without a fixed catchphrase.',
+            source,
+        )
+
         # Match the three upstream guardrail bullets without assuming that
         # indentation inside the agent's nested triple-quoted prompt matches
         # indentation in prompts.py. The pinned upstream source uses different
