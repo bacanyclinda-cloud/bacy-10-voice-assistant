@@ -40,7 +40,8 @@ def test_live_model_upgrade_and_voice_consistency():
     assert 'model=\"gemini-3.1-flash-live-preview\"' not in agent
     assert 'voice=\"Enceladus\"' in agent
     assert 'language=\"en-GB\"' in agent
-    assert 'ordinary profanity and playful insults' in agent
+    assert 'repeat a harmless swear word' in agent
+    assert 'give a witty, playful roast' in agent
     assert 'mcp.MCPToolset' in agent
 def test_new_livekit_plugin_supported():
     project=(R/'agent/pyproject.toml').read_text()
