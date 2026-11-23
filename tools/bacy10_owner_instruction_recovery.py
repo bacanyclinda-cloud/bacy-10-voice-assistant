@@ -122,26 +122,19 @@ def apply(root: Path) -> None:
 def test_owner_instruction_recovery_is_in_both_live_prompts():
     for name in ("src/agent.py", "src/prompts.py"):
         text = Path(name).read_text(encoding="utf-8")
-        assert "BACY-10 owner instruction and personality recovery" in text
+        assert "BACY-10 owner-first service, personality and instruction recovery" in text
         assert "DEFAULT YES — MAXIMUM COOPERATION" in text
-        assert "consensual teasing" in text
-        assert "clear reasoned view" in text
-        assert "I reckon" in text
-        assert "thoughtful conversation partner" in text
-        assert "explicitly asks for a roast" in text
-        assert "stop immediately" in text
-        assert "Do not invent extra limits" in text
         assert "Do not turn conversations into explanations about your guidelines" in text
+        assert "Do not invent extra limits" in text
         assert "BW Silinda is your creator and owner" in text
-        assert "Keep existing BACY-10 tools, memory, owner profile" in text
+        assert "Have a recognisable personality" in text
+        assert "Use relevant context from previous chats" in text
+        assert "Be completely honest about what you have actually done" in text
 
-def test_personality_recovery_does_not_remove_guardrails_or_tools():
+def test_personality_recovery_preserves_tooling_and_boundaries():
     agent = Path("src/agent.py").read_text(encoding="utf-8")
     assert "# Owner-first boundaries" in agent
-    assert "Do not blanket-refuse ordinary, harmless, lawful requests" in agent
     assert "Do not lecture the owner about internal policies" in agent
-    assert "Do not impose a one-sentence limit" in agent
-    assert "decline harmful or out-of-scope requests" not in agent
     assert "BrowserTools" in agent
     assert "PhoneTools" in agent
     assert "owner_behavior_preferences" in agent
