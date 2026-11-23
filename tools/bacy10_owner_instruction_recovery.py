@@ -69,13 +69,13 @@ def apply(root: Path) -> None:
                 raise RuntimeError(f"Ambiguous voice instruction in {relative}: {old[:65]!r} occurs {count} times")
             source = source.replace(old, new)
 
-        # Remove any remaining upstream scripted butler catchphrase, including
-        # wording variants that do not exactly match the pinned replacement.
+        # Remove remaining upstream scripted butler catchphrases, even when
+        # the pinned source uses a wording variant.
         source = re.sub(
-            r'(?m)^([ ]*)-.*At your service, Sir.* without assuming that
-        # indentation inside the agent's nested triple-quoted prompt matches
-        # indentation in prompts.py. The pinned upstream source uses different
-        # indentation in those two files.
+            r"(?m)^([ ]*)-.*At your service, Sir.*$",
+            lambda match: match.group(1) + "- If the owner asks whether you are there, answer naturally and directly, without a fixed catchphrase.",
+            source,
+        )
         guardrail_pattern = re.compile(
             r"(?m)^([ \t]*)# Guardrails[ \t]*\n"
             r"[ \t]*\n"
