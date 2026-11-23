@@ -192,6 +192,9 @@ class BacyWakeService : Service() {
             if (Build.VERSION.SDK_INT >= 23 &&
                 context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) !=
                     PackageManager.PERMISSION_GRANTED) return
+            if (Build.VERSION.SDK_INT >= 33 &&
+                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                    PackageManager.PERMISSION_GRANTED) return
             val intent = Intent(context, BacyWakeService::class.java)
             try { context.startForegroundService(intent) }
             catch (_: Exception) { /* Android may block background starts. */ }
@@ -249,7 +252,10 @@ class BacyWakeService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        if (!prefs.getBoolean("handsfree_enabled", false)) {
+        if (!prefs.getBoolean("handsfree_enabled", false) ||
+            (Build.VERSION.SDK_INT >= 33 &&
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                    PackageManager.PERMISSION_GRANTED)) {
             stopSelf()
             return START_NOT_STICKY
         }
