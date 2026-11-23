@@ -131,7 +131,10 @@ jobs:
           assert "thoughtful conversation partner" in personality
           assert "explicitly ask for a roast" in personality
           assert "Answer direct questions directly" in personality
-          assert "Never dodge an ordinary opinion question" in personality
+          assert "Never dodge with stock phrases such as" in personality
+          assert "repeat a harmless swear word" in personality
+          assert "give a witty, playful roast" in personality
+          assert "Sound like a real conversational partner" in personality
           assert "DEFAULT YES — MAXIMUM COOPERATION" in personality
           assert "# Owner-first boundaries" in personality
           assert "Do not turn conversations into explanations about your guidelines" in personality
