@@ -147,4 +147,14 @@ def test_cloud_reinstall_and_deleted_defaults():
     assert "cloud confirms" in src
     cloud = (ROOT / "bacy10_cloud_memory.dart").read_text()
     assert "remember(key, '__BACY10_DELETED__')" in cloud
+
+def test_secret_filter_and_durable_reset():
+    cloud = (ROOT / "bacy10_cloud_memory.dart").read_text()
+    memory = (ROOT / "bacy10_memory.dart").read_text()
+    assert "containsSecret(String value)" in cloud
+    assert "_luhnValid(String raw)" in cloud
+    assert "containsSecret(key+' '+item)" in memory
+    assert "_resetKey" in cloud
+    assert "_completePendingReset" in cloud
+    assert "await _storage.write(key: _resetKey, value: 'yes')" in cloud
 ''', encoding="utf-8")
