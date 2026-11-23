@@ -679,3 +679,5 @@ if __name__ == "__main__":
 # CI trigger: verify the Android wake permission test case fix.
 
 # CI trigger: verify the corrected source validation path.
+
+# CI trigger: verify wake controls are tested on the native listener.
