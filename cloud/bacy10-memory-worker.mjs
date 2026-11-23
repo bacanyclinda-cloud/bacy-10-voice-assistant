@@ -183,10 +183,46 @@ export default {async fetch(req,env){
     return J({ok:true});
   }
   if(req.method==="DELETE"&&pathname==="/memory"){
-    await env.DB.batch([
-      env.DB.prepare("DELETE FROM memory_turns"),
-      env.DB.prepare("DELETE FROM memory_facts")]);
-    return J({ok:true,deleted:true});
+    const oldMode=await resetMode(env);
+    try{
+      await env.DB.prepare(
+        "INSERT INTO memory_reset_control(key,value) VALUES('mode','resetting') "+
+        "ON CONFLICT(key) DO UPDATE SET value='resetting'").run();
+      const sessions=await env.DB.prepare("SELECT DISTINCT session_id FROM memory_turns").all();
+      const priorFacts=await env.DB.prepare("SELECT key,value FROM memory_facts").all();
+      const turnCount=await env.DB.prepare("SELECT COUNT(*) AS n FROM memory_turns").first();
+      const oldPairs=[];
+      for(const row of sessions.results||[])
+        oldPairs.push(["session",await sha256(String(row.session_id??""))]);
+      for(const row of priorFacts.results||[])
+        oldPairs.push(["fact",await sha256(String(row.key)+String.fromCharCode(0)+String(row.value))]);
+      // Keep hashes only, so offline copies of old turns/facts cannot restore
+      // deleted memory after the owner has reset it.
+      for(let i=0;i<oldPairs.length;i+=20){
+        const batch=oldPairs.slice(i,i+20).map(([kind,hash])=>
+          env.DB.prepare("INSERT OR IGNORE INTO memory_reset_replay(kind,hash) VALUES (?,?)")
+            .bind(kind,hash));
+        if(batch.length)await env.DB.batch(batch);
+      }
+      const epoch="bacy-reset-"+Date.now().toString(36);
+      await env.DB.batch([
+        env.DB.prepare("DELETE FROM memory_turns"),
+        env.DB.prepare("DELETE FROM memory_facts"),
+        env.DB.prepare("INSERT INTO memory_reset_control(key,value) VALUES('epoch',?) "+
+          "ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(epoch),
+        env.DB.prepare("INSERT INTO memory_reset_control(key,value) VALUES('mode','ready') "+
+          "ON CONFLICT(key) DO UPDATE SET value='ready'")
+      ]);
+      return J({ok:true,deleted:true,memory_epoch:epoch,
+        previous_turns_deleted:turnCount?.n||0,
+        previous_facts_deleted:(priorFacts.results||[]).length});
+    }catch(err){
+      await env.DB.prepare("DELETE FROM memory_reset_control WHERE key='mode'").run().catch(()=>{});
+      if(oldMode)await env.DB.prepare(
+        "INSERT INTO memory_reset_control(key,value) VALUES('mode',?)")
+        .bind(oldMode).run().catch(()=>{});
+      return J({error:"Memory reset failed; check connection before retrying"},503);
+    }
   }
   return J({error:"Not found"},404);
  }catch{return J({error:"Memory temporarily unavailable"},503)}
