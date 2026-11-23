@@ -156,6 +156,14 @@ export default {async fetch(req,env){
     const mode=await resetMode(env);
     if(mode==="resetting" || (mode==="ready" && await isRetired(env,"fact",key+String.fromCharCode(0)+value)))
       return J({ok:true,ignored:"pre_reset_cached_fact"});
+    if(value==="__BACY10_DELETED__"){
+      const existing=await env.DB.prepare("SELECT value FROM memory_facts WHERE key=?").bind(key).first();
+      if(existing?.value!==undefined && existing.value!=="__BACY10_DELETED__"){
+        const retired=await sha256(key+String.fromCharCode(0)+String(existing.value));
+        await env.DB.prepare("INSERT OR IGNORE INTO memory_reset_replay(kind,hash) VALUES ('fact',?)")
+          .bind(retired).run();
+      }
+    }
     await env.DB.prepare("INSERT INTO memory_facts (key,value,updated_at) VALUES (?,?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP")
      .bind(key,value).run();
     return J({ok:true});
