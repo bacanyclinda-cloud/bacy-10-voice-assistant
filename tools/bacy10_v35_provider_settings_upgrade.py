@@ -7,6 +7,7 @@ Cloudflare pairing and cloud memories remain unchanged.
 from pathlib import Path
 
 PROVIDER_DART = r'''
+import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
@@ -66,6 +67,25 @@ class BacyProviderSettings {
     } catch (_) { return 'Could not reach Gemini. Check internet.'; }
   }
 
+  static Future<List<Map<String,String>>> elevenLabsVoices(String key) async {
+    if (key.trim().isEmpty) return [];
+    final r = await http.get(Uri.parse('https://api.elevenlabs.io/v1/voices'),
+      headers: {'xi-api-key': key.trim()},
+    ).timeout(const Duration(seconds: 15));
+    if (r.statusCode != 200) {
+      if (r.statusCode == 401 || r.statusCode == 403) throw StateError('ElevenLabs key was rejected.');
+      if (r.statusCode == 429) throw StateError('ElevenLabs request limit reached.');
+      throw StateError('ElevenLabs returned HTTP '+r.statusCode.toString()+'.');
+    }
+    final decoded = jsonDecode(r.body);
+    final raw = decoded is Map ? decoded['voices'] : null;
+    if (raw is! List) return [];
+    return raw.whereType<Map>().map((voice) => {
+      'id': (voice['voice_id'] ?? '').toString(),
+      'name': (voice['name'] ?? '').toString(),
+    }).where((voice) => RegExp(r'^[A-Za-z0-9]{10,40}$').hasMatch(voice['id']!) && voice['name']!.isNotEmpty).take(100).toList();
+  }
+
   static Future<String> testElevenLabs(String key) async {
     if (key.trim().isEmpty) return 'Save an ElevenLabs API key first.';
     try {
@@ -103,6 +123,8 @@ class _BacyProviderSettingsScreenState extends State<BacyProviderSettingsScreen>
   bool busy = false;
   bool geminiSaved = false, elevenSaved = false, mcpSaved = false, pairingSaved = false;
   bool geminiEnabled = false, mcpEnabled = false;
+  List<Map<String,String>> elevenVoices = [];
+  String selectedElevenVoiceId = '';
   String result = '';
 
   @override
@@ -119,6 +141,7 @@ class _BacyProviderSettingsScreenState extends State<BacyProviderSettingsScreen>
         BacyProviderSettings.read('gemini_enabled'),
         BacyProviderSettings.read('mcp_enabled'),
         PairingTokenClient.hasPairingCode().then((v)=> v ? 'yes' : ''),
+        BacyProviderSettings.read('elevenlabs_voice_id'),
       ]);
       if (!mounted) return;
       setState(() {
@@ -126,9 +149,30 @@ class _BacyProviderSettingsScreenState extends State<BacyProviderSettingsScreen>
         livekit.text=values[2]; mcp.text=values[3]; mcpSaved=values[4].isNotEmpty;
         geminiEnabled=values[5]=='yes'; mcpEnabled=values[6]=='yes';
         pairingSaved=values[7]=='yes';
+        selectedElevenVoiceId=values[8];
       });
+      if (values[1].isNotEmpty) await _loadElevenLabsVoices();
     } catch (_) {
       if (mounted) setState(()=>result='Encrypted storage is unavailable on this phone.');
+    }
+  }
+
+  Future<void> _loadElevenLabsVoices() async {
+    final key = elevenlabs.text.trim().isNotEmpty
+        ? elevenlabs.text.trim()
+        : await BacyProviderSettings.read('elevenlabs_api_key');
+    if (key.isEmpty) return;
+    try {
+      final voices = await BacyProviderSettings.elevenLabsVoices(key);
+      if (!mounted) return;
+      setState(() {
+        elevenVoices = voices;
+        if (!voices.any((voice) => voice['id'] == selectedElevenVoiceId)) {
+          selectedElevenVoiceId = voices.isEmpty ? '' : voices.first['id']!;
+        }
+      });
+    } catch (error) {
+      if (mounted) setState(() => result = error.toString().replaceFirst('Bad state: ', ''));
     }
   }
 
@@ -153,6 +197,7 @@ class _BacyProviderSettingsScreenState extends State<BacyProviderSettingsScreen>
     try {
       if(gemini.text.trim().isNotEmpty) await BacyProviderSettings.save('gemini_api_key',gemini.text);
       if(elevenlabs.text.trim().isNotEmpty) await BacyProviderSettings.save('elevenlabs_api_key',elevenlabs.text);
+      if(selectedElevenVoiceId.isNotEmpty) await BacyProviderSettings.save('elevenlabs_voice_id',selectedElevenVoiceId);
       if(mcpBearer.text.trim().isNotEmpty) await BacyProviderSettings.save('mcp_bearer',mcpBearer.text);
       await BacyProviderSettings.save('livekit_token_endpoint',livekit.text);
       await BacyProviderSettings.save('mcp_url',mcp.text);
@@ -178,6 +223,8 @@ class _BacyProviderSettingsScreenState extends State<BacyProviderSettingsScreen>
       } else if(provider=='elevenlabs') {
         final value=elevenlabs.text.trim().isNotEmpty?elevenlabs.text.trim():await BacyProviderSettings.read('elevenlabs_api_key');
         outcome=await BacyProviderSettings.testElevenLabs(value);
+        await _loadElevenLabsVoices();
+        if (elevenVoices.isNotEmpty) outcome='ElevenLabs connected. Loaded '+elevenVoices.length.toString()+' voices.';
       }
     } catch (_) { outcome='Provider test failed.'; }
     if(mounted)setState(() {busy=false;result=outcome;});
@@ -235,8 +282,20 @@ class _BacyProviderSettingsScreenState extends State<BacyProviderSettingsScreen>
       _panel('ElevenLabs',[
         _note('Save and test an ElevenLabs API key. The current Gemini Live voice uses its own audio output; ElevenLabs requires a separately configured speech pipeline before it can become the voice.'),
         _field('ElevenLabs API key',elevenlabs,secret:true,hint:elevenSaved?'Saved (hidden)':''),
+        if (elevenVoices.isNotEmpty) Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: DropdownButtonFormField<String>(
+            value: elevenVoices.any((voice) => voice['id'] == selectedElevenVoiceId) ? selectedElevenVoiceId : null,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Choose an ElevenLabs voice', border: OutlineInputBorder(), isDense: true),
+            items: elevenVoices.map((voice) => DropdownMenuItem<String>(
+              value: voice['id'], child: Text(voice['name']!, overflow: TextOverflow.ellipsis),
+            )).toList(),
+            onChanged: busy ? null : (value) => setState(() => selectedElevenVoiceId = value ?? ''),
+          ),
+        ),
         Wrap(spacing:10,children:[
-          OutlinedButton(onPressed:busy?null:()=>_check('elevenlabs'),child:const Text('Test ElevenLabs')),
+          OutlinedButton(onPressed:busy?null:()=>_check('elevenlabs'),child:const Text('Test & load voices')),
           TextButton(onPressed:busy?null:()=>_clear('elevenlabs_api_key'),child:const Text('Remove key')),
         ]),
       ]),
