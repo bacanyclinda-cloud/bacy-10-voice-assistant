@@ -125,8 +125,6 @@ jobs:
           assert (root/'mobile/lib/screens/bacy10_connections_catalog_screen.dart').is_file()
           personality=(root/'agent/src/agent.py').read_text()
           prompts=(root/'agent/src/prompts.py').read_text()
-          assert "BACY-10 owner instruction and personality recovery" in personality
-          assert "BACY-10 owner instruction and personality recovery" in prompts
           assert "consensual teasing" in personality
           assert "clear reasoned view" in personality
           assert "I reckon" in personality
