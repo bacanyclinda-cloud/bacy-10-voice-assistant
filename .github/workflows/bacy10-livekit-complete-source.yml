@@ -269,7 +269,7 @@ jobs:
             'original Gemini voice remains Enceladus':'voice="Enceladus" if voice_profile != "voice2" else "Puck"' in agent,
             'alternate Gemini voice is Puck':'voice="Enceladus" if voice_profile != "voice2" else "Puck"' in agent,
             'female voice uses text-only Gemini hybrid mode':'genai_types.Modality.TEXT' in agent and 'tts=voice3_tts' in agent,
-            'ElevenLabs Florence configured':'voice_id=\'22N9cF8z0o7y23njdyaY\'' in agent and 'eleven_flash_v2_5' in agent,
+            'selected ElevenLabs voice is passed to LiveKit TTS': "voice_id=str(owner_providers.get('elevenlabs_voice_id') or '22N9cF8z0o7y23njdyaY')" in agent and 'eleven_flash_v2_5' in agent,
             'ElevenLabs dependency pinned':'livekit-plugins-elevenlabs>=1.8.0,<2' in pyproject,
             'voice switch is an actual LiveKit RPC':'method=\'bacy10.voice\'' in voice and 'switch_bacy_voice' in voice,
             'phone validates caller is the agent':'room.agentParticipant?.identity != request.callerIdentity' in ctrl,
