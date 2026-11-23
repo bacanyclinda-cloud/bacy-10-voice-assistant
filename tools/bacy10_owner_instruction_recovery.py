@@ -150,7 +150,7 @@ def test_owner_instruction_recovery_is_in_both_live_prompts():
         assert "Have a recognisable, mature personality" in text
         assert "best-effort view" in text
         assert "If asked to repeat a harmless swear word" in text
-        assert "Indian-English accent" in text
+        assert "including Indian English" in text
         assert "Answer direct questions directly" in text
         assert "Talk like a butler" not in text
         assert "Good day, Sir" not in text
