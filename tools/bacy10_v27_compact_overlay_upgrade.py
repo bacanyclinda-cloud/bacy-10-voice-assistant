@@ -167,7 +167,7 @@ class BacyCompactOverlayService : Service() {
                 "AI SPEAKING" -> "Speaking to you"
                 "CONNECTING" -> "Connecting to voice"
                 "DISCONNECTED" -> "Tap to reconnect"
-                "WAKE" -> "Hey Bro — I'm here"
+                "WAKE" -> "Hey, I'm here."
                 else -> "Your assistant is ready"
             }
             canvas.drawText(subtitle, 81*d, 57*d, paint)
@@ -294,7 +294,7 @@ def apply(root: Path) -> None:
             }
             val notice = Notification.Builder(this, CHANNEL)
                 .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-                .setContentTitle("BACY-10 heard Hey Bro")
+                .setContentTitle("Bacy 10 heard you")
                 .setContentText("Tap to open the voice connection")
                 .setContentIntent(PendingIntent.getActivity(this, 4003, expand,
                     PendingIntent.FLAG_UPDATE_CURRENT or
