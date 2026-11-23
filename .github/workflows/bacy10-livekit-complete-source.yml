@@ -347,16 +347,22 @@ jobs:
 
   livekit-cloud-update:
     name: Deploy updated voice-agent tools after all checks pass
-    if: github.ref == 'refs/heads/fix/bacy10-v38-gemini-live-runtime-20261119' || github.ref == 'refs/heads/fix/bacy10-v40-owner-personality-20261121' || github.ref == 'refs/heads/feature/bacy10-v40-android-three-voices-20261120' || github.ref == 'refs/heads/fix/bacy10-v40-safe-reconcile-20261121'
+    if: github.ref == 'refs/heads/main'
     needs: [python-agent, flutter-android, nextjs-web]
     runs-on: ubuntu-latest
     environment: livekit-production
     timeout-minutes: 45
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          name: BACY10-LIVEKIT-FULL-SOURCE
-          path: ./source
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+      - name: Rebuild complete source without relying on Actions artifact storage
+        run: python tools/bacy10_build_livekit_package.py --output source
+      - name: Resolve deployable agent lockfile
+        working-directory: source/agent
+        run: uv lock --python 3.12
       - name: Check private cloud credentials
         env:
           LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
