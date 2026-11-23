@@ -118,8 +118,8 @@ def apply(root: Path) -> None:
         '    "livekit-plugins-ai-coustics~=0.2",\n    "livekit-plugins-elevenlabs>=1.8.0,<2",')
 
     provider=root/'mobile/lib/support/bacy10_provider_settings.dart'
-    replace(provider,"      'mcp_servers':servers,",
-        """      'mcp_servers':servers,
+    replace(provider,"      'mcp_bearer': mcpEnabled && validHttps(mcpUrl) ? await read('mcp_bearer') : '',",
+        """      'mcp_bearer': mcpEnabled && validHttps(mcpUrl) ? await read('mcp_bearer') : '',
       'voice_profile': (await read('voice_profile')).isEmpty ? 'voice1' : await read('voice_profile'),
       'elevenlabs_api_key': (await read('voice_profile')) == 'voice3' ? await read('elevenlabs_api_key') : '',
       'elevenlabs_voice_id': await read('elevenlabs_voice_id'),""")
