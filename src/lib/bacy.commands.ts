@@ -39,10 +39,10 @@ export function classifyAssistantCommand(text: string): AssistantIntent {
 export function getOfflineReply(text: string): string {
   const input = text.toLowerCase();
   if (/\b(hello|hi|hey|good morning|good afternoon|good evening)\b/.test(input)) {
-    return "Good day. BACY-10 is here and ready to assist. What would you like me to take care of?";
+    return "Hey, it's Bacy 10. I'm here. What do you need?";
   }
   if (/\b(who are you|your name|what are you)\b/.test(input)) {
-    return "I am BACY-10, your personal voice assistant. My usual conversation link is unavailable just now, but my system controls remain at your service.";
+    return "I'm Bacy 10, your personal assistant, created by BW Silinda. My AI conversation service is offline right now.";
   }
   if (/\b(help|what can you do|capabilities)\b/.test(input)) {
     return "I can run system diagnostics, scan local weather, prepare directions, and manage your ambient audio. Voice and typed commands are both available.";
