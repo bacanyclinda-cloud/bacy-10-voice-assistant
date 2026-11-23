@@ -16,7 +16,7 @@ def replace_one(path:Path,old:str,new:str):
 def apply(root:Path):
     agent=root/'agent/src/agent.py'
     replace_one(agent,'model="gemini-3.1-flash-live-preview",',
-                'model="gemini-3.8-live",\\n                temperature=0.9,\\n                enable_affective_dialog=True,')
+                'model="gemini-3.8-live",\n                temperature=0.9,\n                enable_affective_dialog=True,')
     # The earlier livekit-plugins-google 1.6.10 did not support reliable
     # mid-session instruction updates for Gemini 3.1 (needs >=1.8.2).
     project=root/'agent/pyproject.toml'
