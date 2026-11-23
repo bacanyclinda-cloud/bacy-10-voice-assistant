@@ -389,3 +389,55 @@ jobs:
           printf 'GOOGLE_API_KEY=%s\nBACY10_AGENT_KEY=%s\nBACY10_APP_URL=%s\n' "$GOOGLE_API_KEY" "$BACY10_AGENT_KEY" "$BACY10_APP_URL" > "$SECRET_FILE"
           lk project add --url "$LIVEKIT_URL" --api-key "$LIVEKIT_API_KEY" --api-secret "$LIVEKIT_API_SECRET" --default bacy10
           lk agent deploy --id "CA_4rt8fujSg5pZ" --secrets-file "$SECRET_FILE"
+
+  # GitHub Actions artifact storage is currently over quota. Publish the
+  # validated source bundle and Android APK as private GitHub Release assets
+  # instead, so the owner can still download both without Actions artifacts.
+  owner-download-release:
+    name: Publish private BACY-10 source and Android downloads
+    if: github.ref == 'refs/heads/main' && needs.source-bundle.result == 'success' && needs.python-agent.result == 'success' && needs.flutter-android.result == 'success' && needs.nextjs-web.result == 'success'
+    needs: [source-bundle, python-agent, flutter-android, nextjs-web]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Rebuild complete tested source bundle
+        run: |
+          python tools/bacy10_build_livekit_package.py --output build/BACY10-LIVEKIT-FULL-SOURCE
+          cd build
+          zip -qr "$GITHUB_WORKSPACE/BACY10-LIVEKIT-FULL-SOURCE.zip" BACY10-LIVEKIT-FULL-SOURCE
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.38.2"
+          cache: true
+      - name: Build Android release APK
+        working-directory: build/BACY10-LIVEKIT-FULL-SOURCE/mobile
+        run: |
+          flutter pub get
+          flutter analyze --no-fatal-infos
+          flutter build apk --release
+      - name: Publish private owner downloads
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: bacy10-v4.0.0-build-${{ github.run_id }}
+          name: BACY-10 V4.0 build ${{ github.run_number }}
+          prerelease: true
+          make_latest: false
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: |
+            BACY10-LIVEKIT-FULL-SOURCE.zip
+            build/BACY10-LIVEKIT-FULL-SOURCE/mobile/build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
