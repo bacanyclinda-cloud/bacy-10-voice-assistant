@@ -170,7 +170,7 @@ class BacyAccessibilityService : AccessibilityService() {
             val service = instance ?: return "Enable BACY-10 in Android Accessibility settings first."
             val root = service.rootInActiveWindow ?: return "No active screen is available to inspect."
             val packageName = root.packageName?.toString().orEmpty()
-            if (isProtected(packageName)) return "Sensitive app screen is protected from AI inspection."
+            if (isProtected(packageName) || isSensitiveScreen(root)) return "Sensitive app or financial screen is protected from AI inspection."
             val results = mutableListOf<String>()
             fun visit(node: AccessibilityNodeInfo?, depth: Int) {
                 if (node == null || depth > 20 || results.size >= 70) return
@@ -193,8 +193,8 @@ class BacyAccessibilityService : AccessibilityService() {
                 return "For safety, tap this sensitive action yourself."
             }
             val root = service.rootInActiveWindow ?: return "The active screen is unavailable."
-            if (isProtected(root.packageName?.toString().orEmpty())) {
-                return "This sensitive app cannot be controlled by BACY-10."
+            if (isProtected(root.packageName?.toString().orEmpty()) || isSensitiveScreen(root)) {
+                return "This sensitive app or financial screen cannot be controlled by BACY-10."
             }
             fun find(node: AccessibilityNodeInfo?, depth: Int): AccessibilityNodeInfo? {
                 if (node == null || depth > 20 || node.isPassword) return null
@@ -229,6 +229,27 @@ class BacyAccessibilityService : AccessibilityService() {
             }
             return if (service.performGlobalAction(action)) "Navigation performed."
                 else "Android did not permit that navigation."
+        }
+
+        private fun isSensitiveScreen(root: AccessibilityNodeInfo): Boolean {
+            val terms = listOf(
+                "bank", "banking", "wallet", "payment", "pay now", "transfer",
+                "withdraw", "deposit", "credit card", "debit card", "card number",
+                "cvv", "account number", "routing number", "checkout", "crypto",
+                "cryptocurrency", "one-time password", "verification code", "2fa"
+            )
+            val content = StringBuilder()
+            var visited = 0
+            fun collect(node: AccessibilityNodeInfo?, depth: Int) {
+                if (node == null || depth > 16 || visited >= 160 || node.isPassword) return
+                visited++
+                content.append(' ').append(node.text?.toString().orEmpty().lowercase())
+                content.append(' ').append(node.contentDescription?.toString().orEmpty().lowercase())
+                for (i in 0 until node.childCount) collect(node.getChild(i), depth + 1)
+            }
+            collect(root, 0)
+            val visible = content.toString()
+            return terms.any { visible.contains(it) }
         }
 
         private fun isProtected(name: String): Boolean {
