@@ -2,15 +2,10 @@ name: BACY-10 LiveKit Complete Source
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
-    paths:
-      - .github/workflows/bacy10-livekit-complete-source.yml
-      - tools/bacy10_*.py
-      - cloud/bacy10-memory-worker.mjs
-      - BACY10-LIVEKIT-DOWNLOAD.md
   push:
-    branches: [main]
+    branches:
+      - main
+      - fix/bacy10-v40-integrated-source-20261123
     paths:
       - .github/workflows/bacy10-livekit-complete-source.yml
       - tools/bacy10_*.py
