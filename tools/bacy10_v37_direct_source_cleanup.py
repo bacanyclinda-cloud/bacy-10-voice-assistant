@@ -35,6 +35,28 @@ def pre(root:Path):
                         for k,v in (preferred+others)[:35]:
                             if not isinstance(v,str) or v=="__BACY10_DELETED__":
                                 continue
+                            # Older cloud facts predate stronger server-side secret filtering.
+                            secret_re=__import__("re")
+                            if secret_re.search(
+                                r"password|passphrase|api.?key|secret|bank.?pin|cvv|\\botp\\b|"
+                                r"-----BEGIN (?:RSA |EC |OPENSSH |PRIVATE )?PRIVATE KEY-----|"
+                                r"\\b(?:sk|rk)-[A-Za-z0-9_-]{20,}\\b|\\bgh[pousr]_[A-Za-z0-9]{20,}\\b|"
+                                r"\\bAIza[0-9A-Za-z_-]{30,}\\b|\\bAKIA[0-9A-Z]{16}\\b|"
+                                r"\\bBearer\\s+[A-Za-z0-9._~+/-]{20,}|"
+                                r"\\beyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\b",
+                                v, flags=secret_re.I):
+                                continue
+                            digits=secret_re.sub(r"\\D","",v)
+                            if 13<=len(digits)<=19:
+                                total=0
+                                for pos,ch in enumerate(reversed(digits)):
+                                    n=int(ch)
+                                    if pos%2:
+                                        n*=2
+                                        if n>9:n-=9
+                                    total+=n
+                                if total%10==0:
+                                    continue
                             memory_lines.append(f"Owner fact {str(k)[:65]}: {v.replace(chr(10),' ')[:500]}")
 """ +s[b:]
     s=s.replace("# Previous owner conversation and personal memory",
