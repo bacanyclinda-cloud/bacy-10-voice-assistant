@@ -12,7 +12,7 @@ def apply(root:Path):
     agent=root/"agent/src/agent.py"
     src=agent.read_text(encoding="utf-8")
     old='                model="gemini-3.8-live",\n                temperature=0.9,\n                enable_affective_dialog=True,\n                voice="Enceladus",'
-    new='                model="gemini-3.8-live",\n                api_version="v1beta",  # real plugin WebSocket verified; avoids HTTP 404\n                input_audio_transcription=genai_types.AudioTranscriptionConfig(),\n                temperature=0.9,\n                enable_affective_dialog=True,\n                voice="Enceladus",'
+    new='                model="gemini-3.8-live",\n                api_version="v1beta",  # real plugin WebSocket verified; avoids HTTP 404\n                input_audio_transcription=genai_types.AudioTranscriptionConfig(),\n                output_audio_transcription=genai_types.AudioTranscriptionConfig(),\n                temperature=0.9,\n                enable_affective_dialog=True,\n                voice="Enceladus",'
     if src.count(old)!=1:
         raise RuntimeError(f"Unexpected Gemini Live constructor: {src.count(old)}")
     agent.write_text(src.replace(old,new,1),encoding="utf-8")
@@ -25,6 +25,7 @@ def test_live_api_version_is_pinned_to_working_endpoint():
     assert 'model="gemini-3.8-live",' in agent
     assert 'api_version="v1beta"' in agent
     assert 'input_audio_transcription=genai_types.AudioTranscriptionConfig()' in agent
+    assert 'output_audio_transcription=genai_types.AudioTranscriptionConfig()' in agent
     assert agent.count('api_version="v1beta"') == 1
     assert 'voice="Enceladus"' in agent
     assert 'temperature=0.9' in agent
