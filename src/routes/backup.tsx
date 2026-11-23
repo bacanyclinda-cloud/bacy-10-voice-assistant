@@ -60,6 +60,13 @@ function BackupStudio() {
   const selectedVoice = useRef<BackupVoice>("voice1");
   const availability = useRef({ voice2: false, voice3: false });
   const conversation = useRef<ChatMessage[]>([]);
+  const HISTORY_STORAGE_KEY = "bacy10.backup.conversation.v1";
+
+  function persistConversation(messages: ChatMessage[]) {
+    conversation.current = messages.slice(-40);
+    try { window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(conversation.current)); }
+    catch { /* Storage restrictions must not break the backup assistant. */ }
+  }
   const audio = useRef<AudioContext | null>(null);
   const currentSound = useRef<AudioBufferSourceNode | null>(null);
   const currentMic = useRef<Recognizer | null>(null);
@@ -69,6 +76,18 @@ function BackupStudio() {
 
   useEffect(() => {
     mounted.current = true;
+    try {
+      const savedHistory = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+      if (savedHistory) {
+        const parsed: unknown = JSON.parse(savedHistory);
+        if (Array.isArray(parsed)) conversation.current = parsed.filter((item): item is ChatMessage =>
+          item !== null && typeof item === "object" &&
+          ((item as ChatMessage).role === "user" || (item as ChatMessage).role === "assistant") &&
+          typeof (item as ChatMessage).content === "string" &&
+          (item as ChatMessage).content.length > 0 && (item as ChatMessage).content.length <= 2000
+        ).slice(-40);
+      }
+    } catch { conversation.current = []; }
     const saved = localStorage.getItem("bacy10-backup-selected-voice");
     if (saved === "voice1" || saved === "voice2" || saved === "voice3") {
       selectedVoice.current = saved; setVoiceState(saved);
@@ -176,7 +195,7 @@ function BackupStudio() {
     if (command) { chooseVoice(command); return; }
     busy.current = true;
     setPhase("thinking");
-    const history: ChatMessage[] = [...conversation.current, { role: "user", content: prompt }].slice(-12);
+    const history: ChatMessage[] = [...conversation.current.slice(-11), { role: "user", content: prompt }];
     try {
       const answer = await ask({ data: { history } });
       if (!mounted.current) return;
@@ -186,7 +205,7 @@ function BackupStudio() {
         return;
       }
       const responseText = answer.reply.trim();
-      conversation.current = [...history, { role: "assistant", content: responseText }].slice(-12);
+      persistConversation([...conversation.current, { role: "user", content: prompt }, { role: "assistant", content: responseText }]);
       setReply(responseText);
       await say(responseText, selectedVoice.current);
     } catch {
