@@ -681,3 +681,5 @@ if __name__ == "__main__":
 # CI trigger: verify the corrected source validation path.
 
 # CI trigger: verify wake controls are tested on the native listener.
+
+# CI trigger: verify the case-corrected wake-listener assertion.
