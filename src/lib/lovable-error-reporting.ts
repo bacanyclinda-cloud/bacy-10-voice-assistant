@@ -61,7 +61,7 @@ export function reportLovableError(error: unknown, context: Record<string, unkno
 
 const MAX_SERIALIZED_LENGTH = 2000;
 
-function redactSensitiveText(value: string): string {
+export function redactSensitiveText(value: string): string {
   return value
     .replace(/(?:authorization|access[_ -]?token|refresh[_ -]?token|api[_ -]?key|client[_ -]?secret|password|passphrase)\s*[:=]\s*["']?[^\s"'&,;]+/gi, "[REDACTED_SECRET]")
     .replace(/\b(?:sk|rk)-[A-Za-z0-9_-]{20,}\b/g, "[REDACTED_API_KEY]")
