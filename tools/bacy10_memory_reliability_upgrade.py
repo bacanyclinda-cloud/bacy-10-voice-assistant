@@ -56,7 +56,6 @@ def apply(root: Path) -> None:
           'key': entry.key,
           'value': entry.value,
           'memory_epoch': epoch,
-          'allow_readd': true,
         });
         if (response?.statusCode != 200) {
           acknowledged = false;
@@ -183,10 +182,10 @@ def test_secret_filter_and_durable_reset():
     assert "await _storage.write(key: _resetKey, value: 'yes')" in cloud
 ''', encoding="utf-8")
 
-def test_explicit_fact_readd_uses_current_epoch():
+def test_memory_writes_use_epoch_and_keep_forget_tombstones():
     cloud = (ROOT / "bacy10_cloud_memory.dart").read_text()
     worker = (ROOT.parents[2] / "cloud/bacy10-memory-worker.mjs").read_text()
     assert "'memory_epoch': epoch" in cloud
-    assert "'allow_readd': true" in cloud
     assert "stale_memory_epoch" in worker
-    assert "x.allow_readd!==true" in worker
+    assert 'isRetired(env,"fact",key+String.fromCharCode(0)+value)' in worker
+    assert "'allow_readd': true" not in cloud
