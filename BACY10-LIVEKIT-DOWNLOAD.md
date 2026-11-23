@@ -8,7 +8,7 @@ This repository contains the web voice assistant and the source generator for th
   `https://bacy10-livekit-bridge.loopsecure-bacanyclinda.workers.dev/token`.
   Its Cloudflare secret bindings are configured; the LiveKit API key and secret remain server-side.
 - **Cloud memory:** `bacy10-memory`, backed by the existing D1 database and authenticated through a Cloudflare service binding to the token bridge. Memory is not stored in the Git repository or embedded as a static personal profile in the APK.
-- **LiveKit agent:** the Python agent named `bacy-10` must be deployed to LiveKit Cloud separately. A connected room alone does not prove the agent joined.
+- **LiveKit agent:** the Python agent `bacy-10` is now deployed to the existing LiveKit Cloud production project. The successful deployment is recorded in GitHub Actions run `45252101627`. A real Android room-join and voice session still needs device acceptance testing.
 
 Never paste, commit, or package pairing codes, API keys, passwords, or LiveKit secrets.
 
@@ -20,7 +20,7 @@ The workflow:
 1. Downloads the pinned upstream source and applies the Bacy 10 upgrade scripts.
 2. Runs source and cloud-memory security checks.
 3. Runs Python/LiveKit agent tests, Flutter analysis and Android release compilation, and the Next.js frontend build.
-4. Optionally uploads the source ZIP and release APK as short-retention artifacts.
+4. Publishes the complete source ZIP and Android APK as private GitHub Release assets.
 
 The primary downloads are published as **private GitHub Release assets** after all main-branch validation jobs pass. Open the repository's **Releases** page and choose the latest `BACY-10 V4.0 build` prerelease. Download `BACY10-LIVEKIT-FULL-SOURCE.zip` for the complete source or `app-release.apk` for Android. This release route does not depend on GitHub Actions artifact storage. Short-retention Actions artifacts may also appear when the separate Actions storage quota allows them, but use the Release assets as the dependable download.
 
@@ -44,14 +44,16 @@ The workflow creates a temporary secrets file with restrictive permissions and r
 
 ## Install the Android release
 
-Download `BACY10-v40-ORIGINAL-ID-RELEASE` from a successful **BACY-10 LiveKit Complete Source** workflow run. Install the APK on Android and enter the private pairing code once. The app stores it using Android encrypted storage and requests short-lived LiveKit room credentials from the HTTPS token bridge. Hands-free wake is **off by default**. The owner must enable it from the hands-free permissions panel; a persistent notification appears while listening, and it can be disabled from the panel or notification. Wake detection uses Android speech recognition, on-device when available; otherwise the device's speech provider may process audio. It is not a dedicated offline hardware hotword detector.
+Use the [BACY-10 V4.0 build 238 release](https://github.com/bacanyclinda-cloud/bacy-10-voice-assistant/releases/tag/bacy10-v4.0.0-build-45252101627). Download [app-release.apk](https://github.com/bacanyclinda-cloud/bacy-10-voice-assistant/releases/download/bacy10-v4.0.0-build-45252101627/app-release.apk) and install it on Android. Because this is a privately distributed testing APK, Android may ask you to allow installation from the browser or file manager. Open the app and enter your private pairing code once. The app stores it using Android encrypted storage and requests short-lived LiveKit room credentials from the HTTPS token bridge. Hands-free wake is **off by default**. The owner must enable it from the hands-free permissions panel; a persistent notification appears while listening, and it can be disabled from the panel or notification. Wake detection uses Android speech recognition, on-device when available; otherwise the device's speech provider may process audio. It is not a dedicated offline hardware hotword detector.
 
-The release package ID is `za.co.bacy10.personalassistant`. This is a release build for testing; production distribution still needs a properly signed release and real-device acceptance testing.
+The release package ID is `za.co.bacy10.personalassistant`. The APK was successfully built and uploaded, but it is a privately signed testing build, not a Play Store production signing package. Real-device acceptance testing remains outstanding.
+
+**Web app memory note:** the existing Lovable web interface currently stores conversation history in that browser's local storage. The deployed D1-backed cloud memory sync is integrated into the separate Android/LiveKit package; do not assume the web interface's chat history is cloud-synchronised.
 
 ## Real-device acceptance checks
 
 1. Confirm the token bridge health endpoint reports that its server configuration is ready.
-2. Deploy the Python agent to LiveKit Cloud and confirm the agent joins the room.
+2. The Python agent is already deployed to LiveKit Cloud; connect from the Android app and confirm the agent joins the room.
 3. Test microphone input, natural voice output and interruption on the actual Android phone.
 4. Test phone actions only after Android permissions are granted.
 5. Test memory save, restore after reinstall, offline queueing and owner-requested deletion.
