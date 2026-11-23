@@ -31,9 +31,9 @@ export async function speakVoiceTwo(text: string, env: Env): Promise<TtsResult> 
     body: JSON.stringify({
       model: viaGateway ? "openai/gpt-4o-mini-tts" : "gpt-4o-mini-tts",
       input: text,
-      voice: "nova",
+      voice: "echo",
       response_format: "mp3",
-      instructions: "Speak as BACY-10 in warm, natural British English. Sound genuinely human and expressive: relaxed pacing, gentle smiles in the voice, natural pauses. Never robotic or theatrical. Do not add or remove words.",
+      instructions: "Speak as Bacy 10 in warm, natural British English. Sound genuinely human and expressive: relaxed pacing, gentle smiles in the voice, natural pauses. Never robotic or theatrical. Do not add or remove words.",
     }),
     signal: AbortSignal.timeout(25_000),
   });
