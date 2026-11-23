@@ -34,3 +34,10 @@ test("cloud reset hashes retired facts and sessions before deleting", async () =
   assert.match(source, /isRetired\(env,"session",session\)/);
   assert.match(source, /isRetired\(env,"fact",key\+String\.fromCharCode\(0\)\+value\)/);
 });
+
+test("individual tombstones retire old fact values", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(new URL("./bacy10-memory-worker.mjs", import.meta.url), "utf8");
+  assert.match(source, /value==="__BACY10_DELETED__"/);
+  assert.match(source, /INSERT OR IGNORE INTO memory_reset_replay\(kind,hash\) VALUES \('fact',\?\)/);
+});
