@@ -57,7 +57,7 @@ class BacyWakeListener(private val activity: Activity, engine: FlutterEngine) {
                                 result.success("Speech recognition is unavailable on this device.")
                             else -> {
                                 start()
-                                result.success("Listening for Hey BACY, Hey Enzo or Hey Bro while this screen is open.")
+                                result.success("Listening for Hey BACY while this screen is open.")
                             }
                         }
                     }
@@ -100,7 +100,7 @@ class BacyWakeListener(private val activity: Activity, engine: FlutterEngine) {
                 val matched = words.any { text ->
                     val normalized = text.lowercase(Locale.ROOT)
                         .replace(Regex("[^a-z0-9 ]"), " ").replace(Regex("\\s+"), " ").trim()
-                    listOf("hey bacy", "hey basi", "hey bacey", "hey enzo", "hey bro")
+                    listOf("hey bacy", "hey basi", "hey bacey")
                         .any { normalized.contains(it) }
                 }
                 if (matched) {
