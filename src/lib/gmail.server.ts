@@ -57,7 +57,7 @@ export async function listLatestEmails(
     { headers },
   );
   if (!list.ok) {
-    console.error(`Gmail list failed [${list.status}]: ${await list.text()}`);
+    console.error(`Gmail list failed [${list.status}]`);
     return { ok: false, status: 502, error: `Gmail is unavailable right now (status ${list.status}).` };
   }
   const ids = ((await list.json()) as { messages?: { id: string }[] }).messages?.map((x) => x.id) ?? [];
@@ -74,7 +74,7 @@ export async function listLatestEmails(
   });
   const text = await batch.text();
   if (!batch.ok) {
-    console.error(`Gmail batch failed [${batch.status}]: ${text}`);
+    console.error(`Gmail batch failed [${batch.status}]`);
     return { ok: false, status: 502, error: `Gmail is unavailable right now (status ${batch.status}).` };
   }
   try {
