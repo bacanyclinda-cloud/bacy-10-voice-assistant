@@ -158,12 +158,12 @@ jobs:
           wake_dir=root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant"
           wake_service=(wake_dir/"BacyWakeService.kt").read_text().lower()
           wake_listener=(wake_dir/"BacyWakeListener.kt").read_text().lower()
-          wake=wake_service+"\\n"+wake_listener
+          wake=wake_service+"\n"+wake_listener
           for line in wake.splitlines():
               if "hey " in line:
                   print("WAKE SOURCE:", line.strip())
           assert "hey bacy" in wake
-          assert not __import__("re").search(r'listOf\\([^)]*(?:hey enzo|hey bro)', wake)
+          assert "hey enzo" not in wake and "hey bro" not in wake
           assert "LIVEKIT_SANDBOX_ID" not in mobile
           assert "LIVEKIT_TOKEN_ENDPOINT=" in (root/"mobile/assets/.env").read_text()
           print("SOURCE VALIDATION PASSED: real agent, browser tools, web app, Flutter mobile and safe templates")
