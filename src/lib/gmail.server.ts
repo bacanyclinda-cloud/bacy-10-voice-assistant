@@ -48,39 +48,43 @@ export async function listLatestEmails(
   fetcher: typeof fetch = fetch,
 ): Promise<GmailResult> {
   if (!gmailConfigured(env)) return { ok: false, status: 503, error: "Gmail is not connected to BACY-10." };
+  const safeCount = Number.isFinite(count) ? Math.max(1, Math.min(10, Math.floor(count))) : 3;
   const headers = {
-    Authorization: `Bearer ${env["LOVABLE_API_KEY"]}`,
+    Authorization: "Bearer " + env["LOVABLE_API_KEY"],
     "X-Connection-Api-Key": env["GOOGLE_MAIL_API_KEY"] ?? "",
   };
-  const list = await fetcher(
-    `${GATEWAY}/gmail/v1/users/me/messages?labelIds=INBOX&maxResults=${count}&fields=messages(id)`,
-    { headers },
-  );
-  if (!list.ok) {
-    console.error(`Gmail list failed [${list.status}]`);
-    return { ok: false, status: 502, error: `Gmail is unavailable right now (status ${list.status}).` };
-  }
-  const ids = ((await list.json()) as { messages?: { id: string }[] }).messages?.map((x) => x.id) ?? [];
-  if (!ids.length) return { ok: true, emails: [] };
-  const boundary = "bacy10batch";
-  const parts = ids.map(
-    (id) =>
-      `--${boundary}\r\nContent-Type: application/http\r\n\r\nGET /gmail/v1/users/me/messages/${encodeURIComponent(id)}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date&fields=payload/headers\r\n\r\n`,
-  );
-  const batch = await fetcher(`${GATEWAY}/batch/gmail/v1`, {
-    method: "POST",
-    headers: { ...headers, "Content-Type": `multipart/mixed; boundary=${boundary}` },
-    body: parts.join("") + `--${boundary}--`,
-  });
-  const text = await batch.text();
-  if (!batch.ok) {
-    console.error(`Gmail batch failed [${batch.status}]`);
-    return { ok: false, status: 502, error: `Gmail is unavailable right now (status ${batch.status}).` };
-  }
   try {
-    return { ok: true, emails: parseBatchResponse(batch.headers.get("content-type") ?? "", text) };
-  } catch (e) {
-    console.error("Gmail batch parse failed", e);
-    return { ok: false, status: 502, error: "Gmail returned an unreadable answer." };
+    const list = await fetcher(
+      GATEWAY + "/gmail/v1/users/me/messages?labelIds=INBOX&maxResults=" + safeCount + "&fields=messages(id)",
+      { headers, signal: AbortSignal.timeout(7_000) },
+    );
+    if (!list.ok) {
+      console.error("Gmail list failed [" + list.status + "]");
+      return { ok: false, status: 502, error: "Gmail is unavailable right now (status " + list.status + ")." };
+    }
+    const listed = await list.json() as { messages?: { id: string }[] };
+    const ids = (listed.messages ?? []).map((item) => item.id).filter((id) => typeof id === "string").slice(0, 10);
+    if (!ids.length) return { ok: true, emails: [] };
+    const boundary = "bacy10batch";
+    const parts = ids.map((id) =>
+      "--" + boundary + "\r\nContent-Type: application/http\r\n\r\nGET /gmail/v1/users/me/messages/" +
+      encodeURIComponent(id) +
+      "?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date&fields=payload/headers\r\n\r\n"
+    );
+    const batch = await fetcher(GATEWAY + "/batch/gmail/v1", {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "multipart/mixed; boundary=" + boundary },
+      body: parts.join("") + "--" + boundary + "--",
+      signal: AbortSignal.timeout(7_000),
+    });
+    const responseText = await batch.text();
+    if (!batch.ok) {
+      console.error("Gmail batch failed [" + batch.status + "]");
+      return { ok: false, status: 502, error: "Gmail is unavailable right now (status " + batch.status + ")." };
+    }
+    return { ok: true, emails: parseBatchResponse(batch.headers.get("content-type") ?? "", responseText) };
+  } catch (error) {
+    console.error("Gmail request failed", error instanceof Error ? error.name : "unknown");
+    return { ok: false, status: 502, error: "Gmail could not be reached safely. Please try again." };
   }
 }
