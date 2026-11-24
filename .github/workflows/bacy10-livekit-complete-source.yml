@@ -410,7 +410,7 @@ jobs:
   owner-download-release:
     name: Publish private BACY-10 source and Android downloads
     if: github.ref == 'refs/heads/main' && needs.source-bundle.result == 'success' && needs.python-agent.result == 'success' && needs.flutter-android.result == 'success'
-    needs: [source-bundle, python-agent, flutter-android, nextjs-web]
+    needs: [source-bundle, python-agent, flutter-android]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
