@@ -288,10 +288,12 @@ jobs:
       # no fabricated keys are supplied to CI.
 
   flutter-android:
-    name: Build BACY-10 restored release APK
-    needs: source-bundle
+    name: Build and publish BACY-10 Android release
+    needs: [source-bundle, python-agent]
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    permissions:
+      contents: write
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -317,14 +319,26 @@ jobs:
       - name: Compile Android release-style APK (private testing signature)
         working-directory: source/mobile
         run: flutter build apk --release
-      - name: Upload BACY-10 Android release-style APK
-        uses: actions/upload-artifact@v4
+      - name: Package complete Android source for private release
+        if: github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          zip -qr "$GITHUB_WORKSPACE/BACY10-LIVEKIT-FULL-SOURCE.zip" source
+      - name: Publish private source and Android APK
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
         with:
-          name: BACY10-v40-ORIGINAL-ID-RELEASE
-          path: source/mobile/build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 3
-          if-no-files-found: error
-        continue-on-error: true
+          tag_name: bacy10-v4.0.0-build-${{ github.run_id }}
+          name: BACY-10 V4.0 build ${{ github.run_number }}
+          prerelease: true
+          make_latest: false
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: |
+            BACY10-LIVEKIT-FULL-SOURCE.zip
+            source/mobile/build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   livekit-cloud-update:
     name: Deploy updated voice-agent tools after all checks pass
     if: github.ref == 'refs/heads/main'
@@ -411,55 +425,3 @@ jobs:
           TURN="$(lk agent debugger say --json --timeout 90s --logs "Say: BACY ten audio connection test. Reply with the words audio connection working.")"
           printf '%s\\n' "$TURN"
           printf '%s' "$TURN" | python -c 'import json,sys; d=json.load(sys.stdin); transcript=str(d.get("text","")).strip(); reply=str(d.get("reply","")).strip(); assert transcript, "No speech transcription was received"; assert reply, "The model returned no spoken reply"; events=d.get("events",[]); errors=[e for e in events if isinstance(e,dict) and e.get("type")=="error"]; assert not errors, errors; print("LIVE AUDIO SMOKE TEST PASSED: transcription and assistant reply received")'
-
-  # GitHub Actions artifact storage is currently over quota. Publish the
-  # validated source bundle and Android APK as private GitHub Release assets
-  # instead, so the owner can still download both without Actions artifacts.
-  owner-download-release:
-    name: Publish private BACY-10 source and Android downloads
-    if: github.ref == 'refs/heads/main' && needs.source-bundle.result == 'success' && needs.python-agent.result == 'success' && needs.flutter-android.result == 'success'
-    needs: [source-bundle, python-agent, flutter-android]
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Rebuild complete tested source bundle
-        run: |
-          python tools/bacy10_build_livekit_package.py --output build/BACY10-LIVEKIT-FULL-SOURCE
-          cd build
-          zip -qr "$GITHUB_WORKSPACE/BACY10-LIVEKIT-FULL-SOURCE.zip" BACY10-LIVEKIT-FULL-SOURCE
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: "3.38.2"
-          cache: true
-      - name: Build Android release APK
-        working-directory: build/BACY10-LIVEKIT-FULL-SOURCE/mobile
-        run: |
-          flutter pub get
-          flutter analyze --no-fatal-infos
-          flutter build apk --release
-      - name: Publish private owner downloads
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: bacy10-v4.0.0-build-${{ github.run_id }}
-          name: BACY-10 V4.0 build ${{ github.run_number }}
-          prerelease: true
-          make_latest: false
-          overwrite_files: true
-          fail_on_unmatched_files: true
-          files: |
-            BACY10-LIVEKIT-FULL-SOURCE.zip
-            build/BACY10-LIVEKIT-FULL-SOURCE/mobile/build/app/outputs/flutter-apk/app-release.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
