@@ -2,6 +2,11 @@ name: BACY-10 LiveKit Agent Diagnostics
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - diagnostics/livekit-2026-11-24
+    paths:
+      - .github/workflows/bacy10-livekit-diagnostics.yml
 
 permissions:
   contents: read
@@ -11,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
+      - name: Check BACY-10 secure token bridge
+        run: curl --fail --silent --show-error https://bacy10-livekit-bridge.loopsecure-bacanyclinda.workers.dev/health
       - name: Install official LiveKit CLI
         run: curl -sSL https://get.livekit.io/cli | bash
       - name: Inspect deployment status, dispatch, and recent runtime logs
