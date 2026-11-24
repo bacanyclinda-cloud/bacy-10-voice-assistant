@@ -36,6 +36,17 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Diagnose source builder before packaging
+        run: |
+          set -euxo pipefail
+          python --version
+          python -m compileall -q tools
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, 'tools')
+          import bacy10_build_livekit_package
+          print('Builder imports passed')
+          PY
       - name: Download pinned full tutorial and apply BACY-10 setup
         run: python tools/bacy10_build_livekit_package.py --output build/BACY10-LIVEKIT-FULL-SOURCE
       - uses: astral-sh/setup-uv@v6
