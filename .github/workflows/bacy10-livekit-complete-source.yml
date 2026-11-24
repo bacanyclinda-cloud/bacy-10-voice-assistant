@@ -93,6 +93,7 @@ jobs:
           assert "RETRY VOICE AGENT" in (root/"mobile/lib/screens/agent_screen.dart").read_text()
           assert "room.agentParticipant == null" in mobile
           assert "WAITING FOR BACY-10" in mobile
+          assert "_lastAgentJoined" in mobile
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyVoiceService.kt").is_file()
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyCompactOverlayService.kt").is_file()
           assert 'BacyOverlayLauncherActivity' not in manifest, 'Restore original app launcher rather than v3.0 overlay'
