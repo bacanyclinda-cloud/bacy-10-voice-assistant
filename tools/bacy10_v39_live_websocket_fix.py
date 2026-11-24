@@ -11,7 +11,7 @@ from pathlib import Path
 def apply(root:Path):
     agent=root/"agent/src/agent.py"
     src=agent.read_text(encoding="utf-8")
-    old='                model="gemini-3.8-live",\n                temperature=0.9,\n                enable_affective_dialog=True,\n                voice="Enceladus",'
+    old='                model="gemini-3.8-live",\n                temperature=0.9,\n                # removed: unsupported on Gemini 3.8\n                voice="Enceladus",'
     new='                model="gemini-3.8-live",\n                api_version="v1beta",  # real plugin WebSocket verified; avoids HTTP 404\n                input_audio_transcription=genai_types.AudioTranscriptionConfig(),\n                output_audio_transcription=genai_types.AudioTranscriptionConfig(),\n                temperature=0.9,\n                enable_affective_dialog=True,\n                voice="Enceladus",'
     if src.count(old)!=1:
         raise RuntimeError(f"Unexpected Gemini Live constructor: {src.count(old)}")
@@ -29,7 +29,7 @@ def test_live_api_version_is_pinned_to_working_endpoint():
     assert agent.count('api_version="v1beta"') == 1
     assert 'voice="Enceladus"' in agent
     assert 'temperature=0.9' in agent
-    assert 'enable_affective_dialog=True' in agent
+    assert 'enable_affective_dialog' not in agent
     assert 'language="en-GB"' in agent
     assert 'mcp.MCPToolset' in agent
 def test_existing_owner_data_untouched():
