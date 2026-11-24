@@ -422,6 +422,9 @@ jobs:
           set -euo pipefail
           cleanup() { lk agent debugger stop --json >/dev/null 2>&1 || true; }
           trap cleanup EXIT
+          uv sync --python 3.12 --locked
+          source .venv/bin/activate
+          python -c "import livekit.agents; print('LiveKit agent dependencies loaded')"
           lk agent debugger start src/agent.py --audio --idle-timeout 3m --json
           TURN="$(lk agent debugger say --json --timeout 90s --logs "Say: BACY ten audio connection test. Reply with the words audio connection working.")"
           printf '%s\\n' "$TURN"
