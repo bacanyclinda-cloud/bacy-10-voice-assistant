@@ -45,15 +45,25 @@ def apply(root: Path) -> None:
 
     one(
         ctrl,
+        """  String _lastCompactStatus = '';""",
+        """  String _lastCompactStatus = '';
+  bool _lastAgentJoined = false;""",
+    )
+    one(
+        ctrl,
         """    final state = session.connectionState != sdk.ConnectionState.connected
         ? 'DISCONNECTED'
         : room.localParticipant?.isSpeaking == true
             ? 'YOU SPEAKING'
             : session.agent.agentState == sdk.AgentState.speaking
                 ? 'AI SPEAKING' : 'LISTENING';""",
-        """    if (room.agentParticipant != null &&
-        connectionError?.startsWith('Connected, but the voice agent is still joining') == true) {
-      connectionError = null;
+        """    final agentJoined = room.agentParticipant != null;
+    if (_lastAgentJoined != agentJoined) {
+      _lastAgentJoined = agentJoined;
+      if (agentJoined &&
+          connectionError?.startsWith('Connected, but the voice agent is still joining') == true) {
+        connectionError = null;
+      }
       notifyListeners();
     }
     final state = session.connectionState != sdk.ConnectionState.connected
