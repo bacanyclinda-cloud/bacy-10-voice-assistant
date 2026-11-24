@@ -11,10 +11,12 @@ on:
       - tools/bacy10_*.py
       - cloud/bacy10-memory-worker.mjs
       - BACY10-LIVEKIT-DOWNLOAD.md
-# Only test the newest source revision; cancel obsolete APK builds on this branch.
+# Serialize BACY-10 production deploys and releases. Never cancel an active deployment
+# or publishing job when another source commit is pushed; newer pending runs may replace
+# older pending runs, but an in-progress production rollout must finish safely.
 concurrency:
   group: bacy10-package-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
