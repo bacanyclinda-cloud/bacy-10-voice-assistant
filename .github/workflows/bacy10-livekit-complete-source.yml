@@ -22,7 +22,9 @@ on:
 # or publishing job when another source commit is pushed; newer pending runs may replace
 # older pending runs, but an in-progress production rollout must finish safely.
 concurrency:
-  group: bacy10-package-${{ github.ref }}
+  # One shared lock prevents two refs/manual runs from deploying the same
+  # production LiveKit agent concurrently. Never cancel an active rollout.
+  group: bacy10-livekit-production
   cancel-in-progress: false
 
 permissions:
