@@ -202,6 +202,22 @@ jobs:
           PY
           find build/BACY10-LIVEKIT-FULL-SOURCE -type d -name __pycache__ -prune -exec rm -rf '{}' +
 
+      - name: Smoke-test deployed BACY-10 token and memory services
+        run: |
+          set -euo pipefail
+          bridge="$(curl --retry 3 --retry-delay 2 --retry-all-errors -fsS https://bacy10-livekit-bridge.loopsecure-bacanyclinda.workers.dev/health)"
+          memory="$(curl --retry 3 --retry-delay 2 --retry-all-errors -fsS https://bacy10-memory.loopsecure-bacanyclinda.workers.dev/health)"
+          python - "$bridge" "$memory" <<'PY'
+          import json, sys
+          bridge, memory = map(json.loads, sys.argv[1:])
+          assert bridge.get("service") == "BACY-10 token endpoint"
+          assert bridge.get("online") is True and bridge.get("configured") is True
+          assert memory.get("service") == "BACY-10 owner memory"
+          assert memory.get("online") is True
+          print("Cloudflare token bridge: online and configured")
+          print("Cloudflare private memory: online")
+          PY
+
       - name: Upload complete source as download ZIP
         uses: actions/upload-artifact@v4
         with:
