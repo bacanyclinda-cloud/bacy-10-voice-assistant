@@ -6,16 +6,25 @@ on:
     branches:
       - main
       - fix/bacy10-v40-integrated-source-20261123
+      - repair/bacy10-agent-presence-20261124
     paths:
       - .github/workflows/bacy10-livekit-complete-source.yml
       - tools/bacy10_*.py
       - cloud/bacy10-memory-worker.mjs
       - BACY10-LIVEKIT-DOWNLOAD.md
+      - src/**
+      - package.json
+      - bun.lock
+      - vite.config.ts
+      - tsconfig.json
+      - public/**
 # Serialize BACY-10 production deploys and releases. Never cancel an active deployment
 # or publishing job when another source commit is pushed; newer pending runs may replace
 # older pending runs, but an in-progress production rollout must finish safely.
 concurrency:
-  group: bacy10-package-${{ github.ref }}
+  # One shared lock prevents two refs/manual runs from deploying the same
+  # production LiveKit agent concurrently. Never cancel an active rollout.
+  group: bacy10-livekit-production
   cancel-in-progress: false
 
 permissions:
@@ -35,6 +44,17 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Diagnose source builder before packaging
+        run: |
+          set -euxo pipefail
+          python --version
+          python -m compileall -q tools
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, 'tools')
+          import bacy10_build_livekit_package
+          print('Builder imports passed')
+          PY
       - name: Download pinned full tutorial and apply BACY-10 setup
         run: python tools/bacy10_build_livekit_package.py --output build/BACY10-LIVEKIT-FULL-SOURCE
       - uses: astral-sh/setup-uv@v6
@@ -89,6 +109,10 @@ jobs:
           assert "RESTORE VOICE CONNECTION" in (root/"mobile/lib/screens/welcome_screen.dart").read_text(), "New installs must have one-time secure connection recovery"
           assert 'preemptive_generation={"enabled": False}' in agent
           assert "RECONNECT VOICE" in (root/"mobile/lib/screens/agent_screen.dart").read_text()
+          assert "RETRY VOICE AGENT" in (root/"mobile/lib/screens/agent_screen.dart").read_text()
+          assert "room.agentParticipant == null" in mobile
+          assert "WAITING FOR BACY-10" in mobile
+          assert "_lastAgentJoined" in mobile
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyVoiceService.kt").is_file()
           assert (root/"mobile/android/app/src/main/kotlin/com/livekit/example/VoiceAssistant/BacyCompactOverlayService.kt").is_file()
           assert 'BacyOverlayLauncherActivity' not in manifest, 'Restore original app launcher rather than v3.0 overlay'
@@ -186,6 +210,22 @@ jobs:
           PY
           find build/BACY10-LIVEKIT-FULL-SOURCE -type d -name __pycache__ -prune -exec rm -rf '{}' +
 
+      - name: Smoke-test deployed BACY-10 token and memory services
+        run: |
+          set -euo pipefail
+          bridge="$(curl --retry 3 --retry-delay 2 --retry-all-errors -fsS https://bacy10-livekit-bridge.loopsecure-bacanyclinda.workers.dev/health)"
+          memory="$(curl --retry 3 --retry-delay 2 --retry-all-errors -fsS https://bacy10-memory.loopsecure-bacanyclinda.workers.dev/health)"
+          python - "$bridge" "$memory" <<'PY'
+          import json, sys
+          bridge, memory = map(json.loads, sys.argv[1:])
+          assert bridge.get("service") == "BACY-10 token endpoint"
+          assert bridge.get("online") is True and bridge.get("configured") is True
+          assert memory.get("service") == "BACY-10 owner memory"
+          assert memory.get("online") is True
+          print("Cloudflare token bridge: online and configured")
+          print("Cloudflare private memory: online")
+          PY
+
       - name: Upload complete source as download ZIP
         uses: actions/upload-artifact@v4
         with:
@@ -195,6 +235,20 @@ jobs:
           if-no-files-found: error
           include-hidden-files: true
         continue-on-error: true
+
+  web-app:
+    name: Test and build the live BACY-10 web assistant
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install locked web dependencies
+        run: bun install --frozen-lockfile
+      - name: Run web application tests
+        run: bun run test
+      - name: Build the production web application
+        run: bun run build
 
   python-agent:
     name: Check real Python agent dependencies and tests
@@ -254,7 +308,7 @@ jobs:
           PY
       - name: Run offline agent and real browser tests
         working-directory: source/agent
-        run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_quick_search.py tests/test_image_provider.py tests/test_voice_stability.py tests/test_background_voice.py tests/test_floating_capsule.py tests/test_cloud_memory.py tests/test_memory_reliability.py tests/test_owner_provider_settings.py tests/test_owner_v36_ui.py tests/test_android_v36.py tests/test_v36_mcp_slots.py tests/test_v37_direct_source.py tests/test_v38_gemini_runtime.py tests/test_browser.py tests/test_owner_instruction_recovery.py tests/test_v39_live_websocket.py
+        run: uv run pytest -q tests/test_prompts.py tests/test_web_search.py tests/test_quick_search.py tests/test_image_provider.py tests/test_voice_stability.py tests/test_background_voice.py tests/test_floating_capsule.py tests/test_cloud_memory.py tests/test_memory_reliability.py tests/test_owner_provider_settings.py tests/test_owner_v36_ui.py tests/test_android_v36.py tests/test_v36_mcp_slots.py tests/test_v37_direct_source.py tests/test_v38_gemini_runtime.py tests/test_browser.py tests/test_owner_instruction_recovery.py tests/test_v39_live_websocket.py tests/test_v41_agent_presence.py
       - name: Verify all three voice paths and secure phone RPC
         working-directory: source
         run: |
@@ -289,7 +343,7 @@ jobs:
 
   flutter-android:
     name: Build and publish BACY-10 Android release
-    needs: [source-bundle, python-agent]
+    needs: [source-bundle, python-agent, web-app]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -319,6 +373,33 @@ jobs:
       - name: Compile Android release-style APK (private testing signature)
         working-directory: source/mobile
         run: flutter build apk --release
+      - name: Package Android test outputs on every branch
+        run: |
+          set -euo pipefail
+          # Keep generated Flutter/Gradle build outputs out of the source ZIP.
+          # The release APK is uploaded separately below.
+          du -sh source source/mobile/build source/mobile/.dart_tool 2>/dev/null || true
+          zip -qr "$GITHUB_WORKSPACE/BACY10-ANDROID-SOURCE.zip" source \
+            -x 'source/mobile/build/*' \
+               'source/mobile/.dart_tool/*' \
+               'source/mobile/android/.gradle/*' \
+               'source/mobile/android/app/build/*' \
+               'source/mobile/android/build/*' \
+               'source/mobile/.flutter-plugins*' \
+               'source/agent/.venv/*' \
+               'source/agent/.pytest_cache/*' \
+               'source/agent/**/__pycache__/*' \
+               'source/agent/frontend/node_modules/*' \
+               'source/agent/frontend/.next/*'
+      - name: Upload Android APK and complete source for testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: BACY10-ANDROID-TEST-${{ github.run_id }}
+          path: |
+            source/mobile/build/app/outputs/flutter-apk/app-release.apk
+            BACY10-ANDROID-SOURCE.zip
+          retention-days: 7
+          if-no-files-found: error
       - name: Package complete Android source for private release
         if: github.ref == 'refs/heads/main'
         run: |
@@ -342,7 +423,7 @@ jobs:
   livekit-cloud-update:
     name: Deploy updated voice-agent tools after all checks pass
     if: github.ref == 'refs/heads/main'
-    needs: [python-agent, flutter-android]
+    needs: [python-agent, flutter-android, web-app]
     runs-on: ubuntu-latest
     environment: livekit-production
     timeout-minutes: 45
