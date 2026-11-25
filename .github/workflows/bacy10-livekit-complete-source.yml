@@ -335,6 +335,19 @@ jobs:
       - name: Compile Android release-style APK (private testing signature)
         working-directory: source/mobile
         run: flutter build apk --release
+      - name: Package Android test outputs on every branch
+        run: |
+          set -euo pipefail
+          zip -qr "$GITHUB_WORKSPACE/BACY10-ANDROID-SOURCE.zip" source
+      - name: Upload Android APK and complete source for testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: BACY10-ANDROID-TEST-${{ github.run_id }}
+          path: |
+            source/mobile/build/app/outputs/flutter-apk/app-release.apk
+            BACY10-ANDROID-SOURCE.zip
+          retention-days: 7
+          if-no-files-found: error
       - name: Package complete Android source for private release
         if: github.ref == 'refs/heads/main'
         run: |
