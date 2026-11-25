@@ -338,7 +338,21 @@ jobs:
       - name: Package Android test outputs on every branch
         run: |
           set -euo pipefail
-          zip -qr "$GITHUB_WORKSPACE/BACY10-ANDROID-SOURCE.zip" source
+          # Keep generated Flutter/Gradle build outputs out of the source ZIP.
+          # The release APK is uploaded separately below.
+          du -sh source source/mobile/build source/mobile/.dart_tool 2>/dev/null || true
+          zip -qr "$GITHUB_WORKSPACE/BACY10-ANDROID-SOURCE.zip" source \
+            -x 'source/mobile/build/*' \
+               'source/mobile/.dart_tool/*' \
+               'source/mobile/android/.gradle/*' \
+               'source/mobile/android/app/build/*' \
+               'source/mobile/android/build/*' \
+               'source/mobile/.flutter-plugins*' \
+               'source/agent/.venv/*' \
+               'source/agent/.pytest_cache/*' \
+               'source/agent/**/__pycache__/*' \
+               'source/agent/frontend/node_modules/*' \
+               'source/agent/frontend/.next/*'
       - name: Upload Android APK and complete source for testing
         uses: actions/upload-artifact@v4
         with:
