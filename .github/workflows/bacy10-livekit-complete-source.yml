@@ -12,6 +12,12 @@ on:
       - tools/bacy10_*.py
       - cloud/bacy10-memory-worker.mjs
       - BACY10-LIVEKIT-DOWNLOAD.md
+      - src/**
+      - package.json
+      - bun.lock
+      - vite.config.ts
+      - tsconfig.json
+      - public/**
 # Serialize BACY-10 production deploys and releases. Never cancel an active deployment
 # or publishing job when another source commit is pushed; newer pending runs may replace
 # older pending runs, but an in-progress production rollout must finish safely.
@@ -228,6 +234,20 @@ jobs:
           include-hidden-files: true
         continue-on-error: true
 
+  web-app:
+    name: Test and build the live BACY-10 web assistant
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install locked web dependencies
+        run: bun install --frozen-lockfile
+      - name: Run web application tests
+        run: bun run test
+      - name: Build the production web application
+        run: bun run build
+
   python-agent:
     name: Check real Python agent dependencies and tests
     needs: source-bundle
@@ -321,7 +341,7 @@ jobs:
 
   flutter-android:
     name: Build and publish BACY-10 Android release
-    needs: [source-bundle, python-agent]
+    needs: [source-bundle, python-agent, web-app]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -401,7 +421,7 @@ jobs:
   livekit-cloud-update:
     name: Deploy updated voice-agent tools after all checks pass
     if: github.ref == 'refs/heads/main'
-    needs: [python-agent, flutter-android]
+    needs: [python-agent, flutter-android, web-app]
     runs-on: ubuntu-latest
     environment: livekit-production
     timeout-minutes: 45
